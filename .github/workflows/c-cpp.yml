@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: dependencies
+      run: sudo apt-get update && sudo apt-get install gcc-mingw-w64 make
+    - name: make
+      run: make
+    - name: artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: bridge
+        path: build
