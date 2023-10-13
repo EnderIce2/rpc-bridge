@@ -1,0 +1,8 @@
+{
+	"C_Cpp.default.compilerPath": "/usr/bin/i686-w64-mingw32-gcc",
+	"files.associations": {
+		"*.su": "tsv",
+		"windows.h": "c",
+		"namedpipeapi.h": "c"
+	}
+}
