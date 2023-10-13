@@ -76,7 +76,7 @@ If you prefer not to use the service for any reason, please refer to the [Run wi
 
 ## Run without installing the service
 
-If you prefer not to use the service, you can manually run `bridge.exe`` within the Wine prefix.
+If you prefer not to use the service, you can manually run `bridge.exe` within the Wine prefix.
 This method is compatible with both Wine and Lutris.
 
 In Lutris, you can achieve this by adding the path to `bridge.exe` in the `Executable` field under `Game options`. In `Arguments`  field, be sure to include the _Windows_ path to the game's executable.
