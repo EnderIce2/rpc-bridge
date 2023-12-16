@@ -1,5 +1,9 @@
 # Discord RPC Bridge for Wine
 
+![GitHub](https://img.shields.io/github/license/EnderIce2/rpc-bridge)
+![GitHub All Releases](https://img.shields.io/github/downloads/EnderIce2/rpc-bridge/total)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/EnderIce2/rpc-bridge)
+
 Simple bridge that allows you to use Discord Rich Presence with Wine games/software.
 
 Works by running a small program in the background that creates a [named pipe](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes) `\\.\pipe\discord-ipc-0` inside the prefix and forwards all data to the pipe `/run/user/1000/discord-ipc-0`.
