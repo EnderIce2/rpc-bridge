@@ -10,6 +10,9 @@
 #define __NR_close 6
 #define __NR_socketcall 102
 
+#define SYS_SOCKET 1
+#define SYS_CONNECT 3
+
 #define O_RDONLY 00
 
 #define likely(expr) (__builtin_expect(!!(expr), 1))
@@ -136,6 +139,7 @@ void ConnectToSocket(int fd)
 
 	print("XDG_RUNTIME_DIR: %s\n", runtime);
 
+	/* TODO: check for multiple discord instances and create a pipe for each */
 	const char *discordUnixPipes[] = {
 		"/discord-ipc-0",
 		"/snap.discord/discord-ipc-0",
@@ -161,7 +165,7 @@ void ConnectToSocket(int fd)
 			(unsigned long)&socketAddr,
 			sizeof(socketAddr)};
 
-		sockRet = sys_socketcall(3, socketArgs);
+		sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
 
 		free(pipePath);
 		if (sockRet >= 0)
@@ -372,7 +376,7 @@ NewConnection:
 		(unsigned long)SOCK_STREAM,
 		0};
 
-	int fd = sys_socketcall(1, socketArgs);
+	int fd = sys_socketcall(SYS_SOCKET, socketArgs);
 
 	print("Socket %d created\n", fd);
 
