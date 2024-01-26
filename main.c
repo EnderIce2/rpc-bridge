@@ -52,6 +52,23 @@ void DetectWine()
 				   GetErrorMessage(), MB_OK | MB_ICONINFORMATION);
 		ExitProcess(1);
 	}
+
+	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
+	wine_get_host_version = (void *)GetProcAddress(hNTdll, "wine_get_host_version");
+
+	assert(wine_get_host_version);
+	const char *__sysname;
+	const char *__release;
+	wine_get_host_version(&__sysname, &__release);
+	if (strcmp(__sysname, "Linux") != 0)
+	{
+		int result = MessageBox(NULL, "This program is designed for Linux only!\nDo you want to proceed?",
+								NULL, MB_YESNO | MB_ICONQUESTION);
+		if (result == IDYES)
+			return;
+		else if (result == IDNO)
+			ExitProcess(1);
+	}
 }
 
 void print(char const *fmt, ...)
