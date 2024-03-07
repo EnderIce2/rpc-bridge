@@ -23,6 +23,7 @@ This bridge takes advantage of the Windows service implementation in Wine, elimi
 			- [Steam](#steam)
 		- [If you use Flatpak](#if-you-use-flatpak)
 	- [Run without installing the service](#run-without-installing-the-service)
+	- [About macOS](#about-macos)
 	- [Compiling from source](#compiling-from-source)
 	- [Command line arguments](#command-line-arguments)
 	- [Debugging](#debugging)
@@ -96,9 +97,15 @@ In Wine, all you need to do is run `bridge.exe`.
 
 - When running the program manually without providing any arguments, it will simply initiate the bridge and wait indefinitely until it's closed.
 
+## About macOS
+
+The bridge works similarly on macOS as it does on Linux, but it can't be registered as a service due to TMPDIR limitations. macOS users must manually run `bridge.exe` when needed.
+
+To run `bridge.exe` on macOS, navigate to its directory in the terminal and execute `wine bridge.exe`. (or double click it in the Finder)
+
 ## Compiling from source
 
-- Install the `wine`, `i686-w64-mingw32-gcc` and `make` packages.
+- Install the `wine`, `x86_64-w64-mingw32-gcc` and `make` packages.
 - Open a terminal in the directory that contains this file and run `make`.
 - The compiled executable will be located in `build/bridge.exe`.
 
