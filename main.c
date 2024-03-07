@@ -60,9 +60,9 @@ void DetectWine()
 	const char *__sysname;
 	const char *__release;
 	wine_get_host_version(&__sysname, &__release);
-	if (strcmp(__sysname, "Linux") != 0)
+	if (strcmp(__sysname, "Linux") != 0 && strcmp(__sysname, "Darwin") != 0)
 	{
-		int result = MessageBox(NULL, "This program is designed for Linux only!\nDo you want to proceed?",
+		int result = MessageBox(NULL, "This program is designed for Linux and macOS only!\nDo you want to proceed?",
 								NULL, MB_YESNO | MB_ICONQUESTION);
 		if (result == IDYES)
 			return;
@@ -114,11 +114,19 @@ int main(int argc, char *argv[])
 			}
 			return 0;
 		}
-
-		if (strcmp(argv[1], "--install") == 0)
+		else if (strcmp(argv[1], "--install") == 0)
 			InstallService();
 		else if (strcmp(argv[1], "--uninstall") == 0)
 			RemoveService();
+		else if (strcmp(argv[1], "--help") == 0)
+		{
+			printf("Usage:\n");
+			printf("  %s [args]\n", argv[0]);
+			printf("  --install    - Install service\n");
+			printf("  --uninstall  - Uninstall service\n");
+			printf("  --help       - Show this help\n");
+			ExitProcess(0);
+		}
 	}
 
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
