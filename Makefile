@@ -14,11 +14,11 @@ install: build
 
 build: $(C_OBJECTS)
 	$(info Linking)
-	i686-w64-mingw32-gcc $(C_OBJECTS) $(LFLAGS) $(DBGFLAGS) -o build/bridge.exe
+	x86_64-w64-mingw32-gcc $(C_OBJECTS) $(LFLAGS) $(DBGFLAGS) -o build/bridge.exe
 
 %.o: %.c
 	$(info Compiling $<)
-	i686-w64-mingw32-gcc $(CFLAGS) $(DBGFLAGS) -c $< -o $@
+	x86_64-w64-mingw32-gcc $(CFLAGS) $(DBGFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(C_OBJECTS) build/bridge.exe
