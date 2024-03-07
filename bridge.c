@@ -4,16 +4,36 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define __NR_read 3
-#define __NR_write 4
-#define __NR_open 5
-#define __NR_close 6
-#define __NR_socketcall 102
+#define __linux_read 3
+#define __linux_write 4
+#define __linux_open 5
+#define __linux_close 6
+#define __linux_munmap 91
+#define __linux_socketcall 102
+#define __linux_mmap2 192
+#define __linux_socket 359
+#define __linux_connect 362
+
+#define __darwin_read 0x2000003
+#define __darwin_write 0x2000004
+#define __darwin_open 0x2000005
+#define __darwin_close 0x2000006
+#define __darwin_socket 0x2000061
+#define __darwin_connect 0x2000062
+#define __darwin_fcntl 0x200005C
+#define __darwin_sysctl 0x20000CA
+
+#define O_RDONLY 00
+
+#define PROT_READ 1
+#define PROT_WRITE 2
+#define MAP_PRIVATE 0x02
+#define MAP_FIXED 0x10
+#define MAP_ANON 0x20
+#define MAP_FAILED ((void *)-1)
 
 #define SYS_SOCKET 1
 #define SYS_CONNECT 3
-
-#define O_RDONLY 00
 
 #define likely(expr) (__builtin_expect(!!(expr), 1))
 #define unlikely(expr) (__builtin_expect(!!(expr), 0))
@@ -21,8 +41,11 @@
 #define force_inline \
 	__inline__       \
 		__attribute__((__always_inline__, __gnu_inline__))
+#define naked __attribute__((naked))
 
 typedef unsigned short sa_family_t;
+typedef char *caddr_t;
+typedef unsigned socklen_t;
 struct sockaddr_un
 {
 	sa_family_t sun_family; /* AF_UNIX */
@@ -39,10 +62,11 @@ void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
 BOOL RetryNewConnection;
+BOOL IsLinux;
 
-static force_inline int syscall(int num,
-								intptr_t arg1, intptr_t arg2, intptr_t arg3,
-								intptr_t arg4, intptr_t arg5, intptr_t arg6)
+static force_inline int linux_syscall(int num,
+									  int arg1, int arg2, int arg3,
+									  int arg4, int arg5, int arg6)
 {
 	int ret;
 	__asm__ __volatile__(
@@ -51,38 +75,124 @@ static force_inline int syscall(int num,
 		: "0"(num), "b"(arg1), "c"(arg2),
 		  "d"(arg3), "S"(arg4), "D"(arg5)
 		: "memory");
-
 	return ret;
+}
+
+static naked int darwin_syscall(int num,
+								long arg1, long arg2, long arg3,
+								long arg4, long arg5, long arg6)
+{
+	register long r10 __asm__("r10") = arg4;
+	register long r8 __asm__("r8") = arg5;
+	register long r9 __asm__("r9") = arg6;
+	__asm__ __volatile__(
+		"syscall\n"
+		"jae noerror\n"
+		"negq %%rax\n"
+		"noerror:\n"
+		"ret\n"
+		: "=a"(num)
+		: "a"(num), "D"(arg1), "S"(arg2), "d"(arg3), "r"(r10), "r"(r8), "r"(r9)
+		: "memory");
 }
 
 static inline int sys_read(int fd, void *buf, size_t count)
 {
-	return syscall(__NR_read, fd, (intptr_t)buf, count, 0, 0, 0);
+	if (IsLinux)
+		return linux_syscall(__linux_read, fd, buf, count, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_read, fd, buf, count, 0, 0, 0);
 }
 
 static inline int sys_write(int fd, const void *buf, size_t count)
 {
-	return syscall(__NR_write, fd, (intptr_t)buf, count, 0, 0, 0);
+	if (IsLinux)
+		return linux_syscall(__linux_write, fd, buf, count, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_write, fd, buf, count, 0, 0, 0);
 }
 
 static inline int sys_open(const char *pathname, int flags, int mode)
 {
-	return syscall(__NR_open, (intptr_t)pathname, flags, mode, 0, 0, 0);
+	if (IsLinux)
+		return linux_syscall(__linux_open, pathname, flags, mode, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_open, pathname, flags, mode, 0, 0, 0);
 }
 
 static inline int sys_close(int fd)
 {
-	return syscall(__NR_close, fd, 0, 0, 0, 0, 0);
+	if (IsLinux)
+		return linux_syscall(__linux_close, fd, 0, 0, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_close, fd, 0, 0, 0, 0, 0);
+}
+
+static inline unsigned int *sys_mmap(unsigned int *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+	assert(IsLinux);
+	return linux_syscall(__linux_mmap2, addr, length, prot, flags, fd, offset);
+}
+
+static inline int sys_munmap(unsigned int *addr, size_t length)
+{
+	assert(IsLinux);
+	return linux_syscall(__linux_munmap, addr, length, 0, 0, 0, 0);
 }
 
 static inline int sys_socketcall(int call, unsigned long *args)
 {
-	return syscall(__NR_socketcall, call, (intptr_t)args, 0, 0, 0, 0);
+	assert(IsLinux);
+	return linux_syscall(__linux_socketcall, call, args, 0, 0, 0, 0);
 }
 
-char *linux_getenv(const char *name)
+static inline int sys_socket(int domain, int type, int protocol)
 {
-	int fd = sys_open("/proc/self/environ", O_RDONLY, 0);
+	if (IsLinux)
+		return linux_syscall(__linux_socket, domain, type, protocol, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_socket, domain, type, protocol, 0, 0, 0);
+}
+
+static inline int sys_connect(int s, caddr_t name, socklen_t namelen)
+{
+	if (IsLinux)
+		return linux_syscall(__linux_connect, s, name, namelen, 0, 0, 0);
+	else
+		return darwin_syscall(__darwin_connect, s, name, namelen, 0, 0, 0);
+}
+
+char *native_getenv(const char *name)
+{
+	if (!IsLinux)
+	{
+		char *value = getenv(name);
+		if (value == NULL)
+		{
+			print("Failed to get environment variable: %s\n", name);
+			return NULL;
+		}
+		return value;
+	}
+
+	/* I hope the 0x10000 is okay */
+	void *environStr = sys_mmap(0x10000, 4096, PROT_READ | PROT_WRITE,
+								MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	if (environStr == MAP_FAILED)
+	{
+		print("Failed to allocate environ string: %d\n", (intptr_t)environStr);
+		return NULL;
+	}
+
+	if ((uintptr_t)environStr > 0x7effffff)
+		print("Warning: environStr %p is above 2GB\n", environStr);
+
+	const char *linux_environ = "/proc/self/environ";
+	memcpy(environStr, linux_environ, strlen(linux_environ) + 1);
+
+	int fd = sys_open(environStr, O_RDONLY, 0);
+
+	sys_munmap(environStr, 4096);
 	if (fd < 0)
 	{
 		print("Failed to open /proc/self/environ: %d\n", fd);
@@ -123,21 +233,22 @@ char *linux_getenv(const char *name)
 void ConnectToSocket(int fd)
 {
 	print("Connecting to socket\n");
-	const char *runtime = linux_getenv("XDG_RUNTIME_DIR");
+	const char *runtime;
+	if (IsLinux)
+		runtime = native_getenv("XDG_RUNTIME_DIR");
+	else
+		runtime = native_getenv("TMPDIR");
 	if (runtime == NULL)
 	{
-		print("XDG_RUNTIME_DIR not set\n");
+		print("IPC directory not set\n");
 		if (!RunningAsService)
-		{
-			MessageBox(NULL,
-					   "XDG_RUNTIME_DIR not set",
+			MessageBox(NULL, "IPC directory not set",
 					   "Environment variable not set",
 					   MB_OK | MB_ICONSTOP);
-		}
 		ExitProcess(1);
 	}
 
-	print("XDG_RUNTIME_DIR: %s\n", runtime);
+	print("IPC directory: %s\n", runtime);
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
 	const char *discordUnixPipes[] = {
@@ -160,12 +271,17 @@ void ConnectToSocket(int fd)
 
 		print("Connecting to %s\n", pipePath);
 
-		unsigned long socketArgs[] = {
-			(unsigned long)fd,
-			(unsigned long)&socketAddr,
-			sizeof(socketAddr)};
+		if (IsLinux)
+		{
+			unsigned long socketArgs[] = {
+				(unsigned long)fd,
+				(unsigned long)(intptr_t)&socketAddr,
+				sizeof(socketAddr)};
 
-		sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
+			sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
+		}
+		else
+			sockRet = sys_connect(fd, (caddr_t)&socketAddr, sizeof(socketAddr));
 
 		free(pipePath);
 		if (sockRet >= 0)
@@ -176,12 +292,9 @@ void ConnectToSocket(int fd)
 	{
 		print("socketcall failed for: %d\n", sockRet);
 		if (!RunningAsService)
-		{
-			MessageBox(NULL,
-					   "Failed to connect to Discord",
+			MessageBox(NULL, "Failed to connect to Discord",
 					   "Socket Connection failed",
 					   MB_OK | MB_ICONSTOP);
-		}
 		ExitProcess(1);
 	}
 }
@@ -327,6 +440,17 @@ void PipeBufferOutThread(LPVOID lpParam)
 
 void CreateBridge()
 {
+	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
+	HMODULE hntdll = GetModuleHandle("ntdll.dll");
+	wine_get_host_version = (void *)GetProcAddress(hntdll, "wine_get_host_version");
+
+	assert(wine_get_host_version);
+	const char *__sysname;
+	const char *__release;
+	wine_get_host_version(&__sysname, &__release);
+	IsLinux = strcmp(__sysname, "Linux") == 0;
+	print("Running on %s\n", __sysname);
+
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
 NewConnection:
@@ -334,11 +458,11 @@ NewConnection:
 						 NULL, NULL,
 						 NULL, NULL))
 	{
+		print("Pipe already exists: %s\n",
+			  GetErrorMessage());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   NULL, MB_OK | MB_ICONSTOP);
-		print("Pipe already exists: %s\n",
-			  GetErrorMessage());
 		ExitProcess(1);
 	}
 
@@ -350,11 +474,11 @@ NewConnection:
 
 	if (hPipe == INVALID_HANDLE_VALUE)
 	{
+		print("Failed to create pipe: %s\n",
+			  GetErrorMessage());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   NULL, MB_OK | MB_ICONSTOP);
-		print("Failed to create pipe: %s\n",
-			  GetErrorMessage());
 		ExitProcess(1);
 	}
 
@@ -362,30 +486,35 @@ NewConnection:
 	print("Waiting for pipe connection\n");
 	if (!ConnectNamedPipe(hPipe, NULL))
 	{
+		print("Failed to connect to pipe: %s\n",
+			  GetErrorMessage());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   NULL, MB_OK | MB_ICONSTOP);
-		print("Failed to connect to pipe: %s\n",
-			  GetErrorMessage());
 		ExitProcess(1);
 	}
 	print("Pipe connected\n");
 
-	unsigned long socketArgs[] = {
-		(unsigned long)AF_UNIX,
-		(unsigned long)SOCK_STREAM,
-		0};
-
-	int fd = sys_socketcall(SYS_SOCKET, socketArgs);
+	int fd;
+	if (IsLinux)
+	{
+		unsigned long socketArgs[] = {
+			(unsigned long)AF_UNIX,
+			(unsigned long)SOCK_STREAM,
+			0};
+		fd = sys_socketcall(SYS_SOCKET, socketArgs);
+	}
+	else
+		fd = sys_socket(AF_UNIX, SOCK_STREAM, 0);
 
 	print("Socket %d created\n", fd);
 
 	if (fd < 0)
 	{
-		if (!RunningAsService)
-			MessageBox(NULL, GetErrorMessage(),
-					   NULL, MB_OK | MB_ICONSTOP);
 		print("Failed to create socket: %d\n", fd);
+		if (!RunningAsService)
+			MessageBox(NULL, "Failed to create socket",
+					   NULL, MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
@@ -406,9 +535,9 @@ NewConnection:
 
 	if (hIn == NULL || hOut == NULL)
 	{
+		print("Failed to create threads: %s\n", GetErrorMessage());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(), NULL, MB_OK | MB_ICONSTOP);
-		print("Failed to create threads: %s\n", GetErrorMessage());
 		ExitProcess(1);
 	}
 
