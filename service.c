@@ -83,9 +83,28 @@ void ServiceMain(DWORD argc, LPTSTR *argv)
 	return;
 }
 
+void DetectDarwin()
+{
+	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
+	wine_get_host_version = (void *)GetProcAddress(GetModuleHandle("ntdll.dll"),
+												   "wine_get_host_version");
+	const char *__sysname;
+	const char *__release;
+	wine_get_host_version(&__sysname, &__release);
+	if (strcmp(__sysname, "Darwin") == 0)
+	{
+		/* FIXME: I don't know how to get the TMPDIR without getenv */
+		MessageBox(NULL, "Registering as a service is not supported on macOS at the moment.",
+				   "Unsupported", MB_OK | MB_ICONINFORMATION);
+		ExitProcess(1);
+	}
+}
+
 void InstallService()
 {
 	print("Registering to run on startup\n");
+
+	DetectDarwin();
 
 	SC_HANDLE schSCManager, schService;
 	DWORD dwTagId;
