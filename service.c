@@ -113,7 +113,8 @@ void InstallService()
 	if (schSCManager == NULL)
 	{
 		MessageBox(NULL, GetErrorMessage(),
-				   NULL, MB_OK | MB_ICONSTOP);
+				   "OpenSCManager",
+				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
@@ -128,7 +129,8 @@ void InstallService()
 	if (schService == NULL)
 	{
 		MessageBox(NULL, GetErrorMessage(),
-				   NULL, MB_OK | MB_ICONSTOP);
+				   "CreateService",
+				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 	else
@@ -156,7 +158,8 @@ void RemoveService()
 	if (schSCManager == NULL)
 	{
 		MessageBox(NULL, GetErrorMessage(),
-				   NULL, MB_OK | MB_ICONSTOP);
+				   "OpenSCManager",
+				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
@@ -166,7 +169,8 @@ void RemoveService()
 	if (schService == NULL)
 	{
 		MessageBox(NULL, GetErrorMessage(),
-				   NULL, MB_OK | MB_ICONSTOP);
+				   "OpenService",
+				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
@@ -195,7 +199,8 @@ void RemoveService()
 	if (!DeleteService(schService))
 	{
 		MessageBox(NULL, GetErrorMessage(),
-				   NULL, MB_OK | MB_ICONSTOP);
+				   "DeleteService",
+				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 

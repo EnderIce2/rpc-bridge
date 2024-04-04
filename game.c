@@ -55,7 +55,8 @@ void LaunchGame(int argc, char **argv)
 			if (!GetBinaryType(argv[1], &dwBinaryType))
 			{
 				MessageBox(NULL, GetErrorMessage(),
-						   NULL, MB_OK | MB_ICONSTOP);
+						   "GetBinaryType",
+						   MB_OK | MB_ICONSTOP);
 				ExitProcess(1);
 			}
 			print("Executable type: %d\n", dwBinaryType);
@@ -104,7 +105,8 @@ void LaunchGame(int argc, char **argv)
 	if (!CreateProcess(gamePath, gameArgs, NULL, NULL, FALSE,
 					   0, NULL, NULL, &game_si, &game_pi))
 	{
-		MessageBox(NULL, GetErrorMessage(), NULL, MB_OK | MB_ICONSTOP);
+		MessageBox(NULL, GetErrorMessage(),
+				   "CreateProcess", MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 	LocalFree(gameArgs);
@@ -136,7 +138,8 @@ void LaunchGame(int argc, char **argv)
 	}
 	else
 	{
-		MessageBox(NULL, GetErrorMessage(), NULL, MB_OK | MB_ICONSTOP);
+		MessageBox(NULL, GetErrorMessage(),
+				   "CreateToolhelp32Snapshot", MB_OK | MB_ICONSTOP);
 		ExitProcess(0);
 	}
 

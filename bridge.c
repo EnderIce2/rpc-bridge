@@ -461,8 +461,11 @@ NewConnection:
 		print("Pipe already exists: %s\n",
 			  GetErrorMessage());
 		if (!RunningAsService)
+		{
 			MessageBox(NULL, GetErrorMessage(),
-					   NULL, MB_OK | MB_ICONSTOP);
+					   "Pipe already exists",
+					   MB_OK | MB_ICONSTOP);
+		}
 		ExitProcess(1);
 	}
 
@@ -477,8 +480,11 @@ NewConnection:
 		print("Failed to create pipe: %s\n",
 			  GetErrorMessage());
 		if (!RunningAsService)
+		{
 			MessageBox(NULL, GetErrorMessage(),
-					   NULL, MB_OK | MB_ICONSTOP);
+					   "Failed to create pipe",
+					   MB_OK | MB_ICONSTOP);
+		}
 		ExitProcess(1);
 	}
 
@@ -537,7 +543,11 @@ NewConnection:
 	{
 		print("Failed to create threads: %s\n", GetErrorMessage());
 		if (!RunningAsService)
-			MessageBox(NULL, GetErrorMessage(), NULL, MB_OK | MB_ICONSTOP);
+		{
+			MessageBox(NULL, GetErrorMessage(),
+					   "Failed to create threads",
+					   MB_OK | MB_ICONSTOP);
+		}
 		ExitProcess(1);
 	}
 
