@@ -134,7 +134,7 @@ void RemoveService()
 	SC_HANDLE schSCManager, schService;
 	SERVICE_STATUS ssSvcStatus;
 
-	schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
+	schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (schSCManager == NULL)
 	{
 		MessageBox(NULL, GetErrorMessage(),
@@ -184,7 +184,7 @@ void RemoveService()
 		ExitProcess(1);
 	}
 
-	DeleteFile("C:\\bridge.exe");
+	DeleteFile("C:\\windows\\bridge.exe");
 	print("Service removed successfully\n");
 	CloseServiceHandle(schService);
 	CloseServiceHandle(schSCManager);

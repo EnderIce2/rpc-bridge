@@ -248,9 +248,9 @@ void HandleArguments(int argc, char *argv[])
 	{
 		char filename[MAX_PATH];
 		GetModuleFileName(NULL, filename, MAX_PATH);
-		CopyFile(filename, "C:\\bridge.exe", FALSE);
+		CopyFile(filename, "C:\\windows\\bridge.exe", FALSE);
 
-		InstallService(SERVICE_AUTO_START, "C:\\bridge.exe --service");
+		InstallService(SERVICE_AUTO_START, "C:\\windows\\bridge.exe --service");
 		ExitProcess(0);
 	}
 	else if (strcmp(argv[1], "--uninstall") == 0)
@@ -264,9 +264,9 @@ void HandleArguments(int argc, char *argv[])
 		printf("  %s [args]\n", argv[0]);
 		printf("  --help       - Show this help\n");
 		printf("  --install    - Install service\n");
-		printf("        This will copy the binary to C:\\bridge.exe and register it as a service\n");
+		printf("        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n");
 		printf("  --uninstall  - Uninstall service\n");
-		printf("        This will remove the service and delete C:\\bridge.exe\n");
+		printf("        This will remove the service and delete C:\\windows\\bridge.exe\n");
 		printf("  --steam      - Reserved for Steam\n");
 		printf("        This will start the service and exit (used with bridge.sh)\n");
 		printf("  --no-service - Do not run as service\n");
@@ -279,7 +279,7 @@ void HandleArguments(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	DetectWine();
-	char *logFilePath = "C:\\bridge.log";
+	char *logFilePath = "C:\\windows\\logs\\bridge.log";
 	g_logFile = fopen(logFilePath, "w");
 	if (g_logFile == NULL)
 	{
