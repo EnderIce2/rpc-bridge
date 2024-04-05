@@ -13,9 +13,26 @@ LPTSTR GetErrorMessage();
 void print(char const *fmt, ...);
 void InstallService(int ServiceStartType, LPCSTR Path);
 void RemoveService();
+void CreateBridge();
+extern BOOL IsLinux;
+
+HWND hwnd = NULL;
 
 VOID HandleStartButton(BOOL Silent)
 {
+	if (!IsLinux)
+	{
+		ShowWindow(hwnd, SW_MINIMIZE);
+		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
+					 NULL, 0, NULL);
+
+		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
+		EnableWindow(item, FALSE);
+		item = GetDlgItem(hwnd, 4);
+		SetWindowText(item, "Bridge is running...");
+		return;
+	}
+
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (hSCManager == NULL)
 	{
@@ -113,19 +130,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-				   LPSTR lpCmdLine, int nCmdShow)
+VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallStyle)
 {
+	*btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
+	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
+	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
+
+	if (!IsLinux)
+	{
+		*btnInstallStyle |= WS_DISABLED;
+		*btnRemoveStyle |= WS_DISABLED;
+		return;
+	}
+
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge", SERVICE_START | SERVICE_QUERY_STATUS);
 
-	INT btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
-	INT btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
-	INT btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
-
 	if (schService != NULL)
 	{
-		btnInstallStyle |= WS_DISABLED;
+		*btnInstallStyle |= WS_DISABLED;
 
 		SERVICE_STATUS_PROCESS ssStatus;
 		DWORD dwBytesNeeded;
@@ -134,16 +157,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		if (ssStatus.dwCurrentState == SERVICE_RUNNING ||
 			ssStatus.dwCurrentState == SERVICE_START_PENDING)
-			btnStartStyle |= WS_DISABLED;
+			*btnStartStyle |= WS_DISABLED;
 	}
 	else
 	{
-		btnStartStyle |= WS_DISABLED;
-		btnRemoveStyle |= WS_DISABLED;
+		*btnStartStyle |= WS_DISABLED;
+		*btnRemoveStyle |= WS_DISABLED;
 	}
 
 	CloseServiceHandle(schService);
 	CloseServiceHandle(hSCManager);
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+				   LPSTR lpCmdLine, int nCmdShow)
+{
+	INT btnStartStyle, btnRemoveStyle, btnInstallStyle;
+	SetButtonStyles(&btnStartStyle, &btnRemoveStyle, &btnInstallStyle);
 
 	const char szClassName[] = "BridgeWindowClass";
 
@@ -163,19 +193,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	assert(RegisterClassEx(&wc));
 
-	HWND hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
-							   szClassName,
-							   "Discord RPC Bridge",
-							   WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
-							   (GetSystemMetrics(SM_CXSCREEN) - 400) / 2,
-							   (GetSystemMetrics(SM_CYSCREEN) - 150) / 2,
-							   400, 150,
-							   NULL, NULL, hInstance, NULL);
+	hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
+						  szClassName,
+						  "Discord RPC Bridge",
+						  WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
+						  (GetSystemMetrics(SM_CXSCREEN) - 400) / 2,
+						  (GetSystemMetrics(SM_CYSCREEN) - 150) / 2,
+						  400, 150,
+						  NULL, NULL, hInstance, NULL);
 
 	CreateWindow("STATIC", "Do you want to start, install or remove the bridge?",
 				 WS_CHILD | WS_VISIBLE | SS_CENTER,
 				 0, 0, 400, 50,
-				 hwnd, NULL, hInstance, NULL);
+				 hwnd, (HMENU)4, hInstance, NULL);
 
 	CreateWindow("BUTTON", "Start",
 				 btnStartStyle,
