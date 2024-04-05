@@ -440,17 +440,6 @@ void PipeBufferOutThread(LPVOID lpParam)
 
 void CreateBridge()
 {
-	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
-	HMODULE hntdll = GetModuleHandle("ntdll.dll");
-	wine_get_host_version = (void *)GetProcAddress(hntdll, "wine_get_host_version");
-
-	assert(wine_get_host_version);
-	const char *__sysname;
-	const char *__release;
-	wine_get_host_version(&__sysname, &__release);
-	IsLinux = strcmp(__sysname, "Linux") == 0;
-	print("Running on %s\n", __sysname);
-
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
 NewConnection:

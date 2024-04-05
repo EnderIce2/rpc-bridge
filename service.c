@@ -8,6 +8,7 @@ SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
 void print(char const *fmt, ...);
 void CreateBridge();
 LPTSTR GetErrorMessage();
+extern BOOL IsLinux;
 
 void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 {
@@ -83,68 +84,47 @@ void ServiceMain(DWORD argc, LPTSTR *argv)
 	return;
 }
 
-void DetectDarwin()
+void InstallService(int ServiceStartType, LPCSTR Path)
 {
-	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
-	wine_get_host_version = (void *)GetProcAddress(GetModuleHandle("ntdll.dll"),
-												   "wine_get_host_version");
-	const char *__sysname;
-	const char *__release;
-	wine_get_host_version(&__sysname, &__release);
-	if (strcmp(__sysname, "Darwin") == 0)
+	print("Registering service\n");
+
+	if (IsLinux == FALSE)
 	{
 		/* FIXME: I don't know how to get the TMPDIR without getenv */
 		MessageBox(NULL, "Registering as a service is not supported on macOS at the moment.",
 				   "Unsupported", MB_OK | MB_ICONINFORMATION);
 		ExitProcess(1);
 	}
-}
 
-void InstallService()
-{
-	print("Registering to run on startup\n");
-
-	DetectDarwin();
-
-	SC_HANDLE schSCManager, schService;
-	DWORD dwTagId;
-
-	schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+	SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
 	if (schSCManager == NULL)
 	{
+		print("Failed to open service manager\n");
 		MessageBox(NULL, GetErrorMessage(),
 				   "OpenSCManager",
 				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
-	schService =
-		CreateService(schSCManager,
-					  "rpc-bridge", "Wine RPC Bridge",
-					  SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-					  SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
-					  "C:\\bridge.exe --service",
-					  NULL, &dwTagId, NULL, NULL, NULL);
+	DWORD dwTagId;
+	SC_HANDLE schService = CreateService(schSCManager,
+										 "rpc-bridge", "Wine RPC Bridge",
+										 SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
+										 ServiceStartType, SERVICE_ERROR_NORMAL,
+										 Path, NULL, &dwTagId, NULL, NULL, NULL);
 
 	if (schService == NULL)
 	{
+		print("Failed to create service\n");
 		MessageBox(NULL, GetErrorMessage(),
 				   "CreateService",
 				   MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
-	else
-	{
-		char filename[MAX_PATH];
-		GetModuleFileName(NULL, filename, MAX_PATH);
-		CopyFile(filename, "C:\\bridge.exe", FALSE);
 
-		print("Service installed successfully\n");
-		CloseServiceHandle(schService);
-	}
-
+	print("Service installed successfully\n");
+	CloseServiceHandle(schService);
 	CloseServiceHandle(schSCManager);
-	ExitProcess(0);
 }
 
 void RemoveService()
@@ -208,5 +188,4 @@ void RemoveService()
 	print("Service removed successfully\n");
 	CloseServiceHandle(schService);
 	CloseServiceHandle(schSCManager);
-	ExitProcess(0);
 }

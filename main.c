@@ -9,8 +9,10 @@ BOOL RunningAsService = FALSE;
 void CreateBridge();
 void LaunchGame(int argc, char **argv);
 void ServiceMain(int argc, char *argv[]);
-void InstallService();
+void InstallService(int ServiceStartType, LPCSTR Path);
+char *native_getenv(const char *name);
 void RemoveService();
+extern BOOL IsLinux;
 
 LPTSTR GetErrorMessage()
 {
@@ -45,7 +47,12 @@ void DetectWine()
 {
 	HMODULE hNTdll = GetModuleHandle("ntdll.dll");
 	if (!hNTdll)
+	{
+		MessageBox(NULL, "Failed to load ntdll.dll",
+				   GetErrorMessage(), MB_OK | MB_ICONERROR);
 		ExitProcess(1);
+	}
+
 	if (!GetProcAddress(hNTdll, "wine_get_version"))
 	{
 		MessageBox(NULL, "This program is only intended to run under Wine.",
@@ -69,6 +76,9 @@ void DetectWine()
 		else if (result == IDNO)
 			ExitProcess(1);
 	}
+
+	IsLinux = strcmp(__sysname, "Linux") == 0;
+	printf("Running on %s\n", __sysname);
 }
 
 void print(char const *fmt, ...)
@@ -80,6 +90,190 @@ void print(char const *fmt, ...)
 	va_start(args, fmt);
 	vfprintf(g_logFile, fmt, args);
 	va_end(args);
+}
+
+void HandleArguments(int argc, char *argv[])
+{
+	if (strcmp(argv[1], "--service") == 0)
+	{
+		RunningAsService = TRUE;
+		print("Running as service\n");
+
+		SERVICE_TABLE_ENTRY ServiceTable[] =
+			{
+				{"rpc-bridge", (LPSERVICE_MAIN_FUNCTION)ServiceMain},
+				{NULL, NULL},
+			};
+
+		if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
+		{
+			print("Service failed to start\n");
+			ExitProcess(1);
+		}
+	}
+	else if (strcmp(argv[1], "--steam") == 0)
+	{
+		/* All this mess just so when you close the game,
+			it automatically closes the bridge and Steam
+			will not say that the game is still running. */
+
+		print("Running as Steam\n");
+		if (IsLinux == FALSE)
+			CreateBridge();
+
+		if (argc > 2)
+		{
+			if (strcmp(argv[2], "--no-service") == 0)
+				CreateBridge();
+		}
+
+		SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+		if (hSCManager == NULL)
+		{
+			print("(Steam) OpenSCManager: %s\n", GetErrorMessage());
+			ExitProcess(1);
+		}
+
+		SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge",
+										   SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG | SERVICE_START);
+		if (schService == NULL)
+		{
+			if (GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST)
+			{
+				print("(Steam) OpenService: %s\n", GetErrorMessage());
+				ExitProcess(1);
+			}
+
+			print("(Steam) Service does not exist, registering...\n");
+
+			WCHAR *(CDECL * wine_get_dos_file_name)(LPCSTR str) =
+				(void *)GetProcAddress(GetModuleHandleA("KERNEL32"),
+									   "wine_get_dos_file_name");
+
+			char *unixPath = native_getenv("BRIDGE_PATH");
+			if (unixPath == NULL)
+			{
+				print("(Steam) BRIDGE_PATH not set\n");
+				ExitProcess(1);
+			}
+			WCHAR *dosPath = wine_get_dos_file_name(unixPath);
+			LPSTR asciiPath = (LPSTR)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH);
+			WideCharToMultiByte(CP_ACP, 0, dosPath, -1, asciiPath, MAX_PATH, NULL, NULL);
+
+			strcat_s(asciiPath, MAX_PATH, " --service");
+			print("(Steam) Binary path: %s\n", asciiPath);
+
+			InstallService(SERVICE_DEMAND_START, asciiPath);
+			HeapFree(GetProcessHeap(), 0, asciiPath);
+
+			/* Create handle for StartService below */
+			print("(Steam) Service registered, opening handle...\n");
+			/* FIXME: For some reason here it freezes??? */
+			schService = OpenService(hSCManager, "rpc-bridge", SERVICE_START);
+			if (schService == NULL)
+			{
+				print("(Steam) Cannot open service after creation: %s\n", GetErrorMessage());
+				ExitProcess(1);
+			}
+		}
+		else
+		{
+			DWORD dwBytesNeeded;
+			QueryServiceConfig(schService, NULL, 0, &dwBytesNeeded);
+			LPQUERY_SERVICE_CONFIG lpqsc = (LPQUERY_SERVICE_CONFIG)LocalAlloc(LPTR, dwBytesNeeded);
+			if (lpqsc == NULL)
+			{
+				print("(Steam) LocalAlloc: %s\n", GetErrorMessage());
+				ExitProcess(1);
+			}
+
+			if (!QueryServiceConfig(schService, lpqsc, dwBytesNeeded, &dwBytesNeeded))
+			{
+				print("(Steam) QueryServiceConfig: %s\n", GetErrorMessage());
+				ExitProcess(1);
+			}
+
+			WCHAR *(CDECL * wine_get_dos_file_name)(LPCSTR str) =
+				(void *)GetProcAddress(GetModuleHandleA("KERNEL32"),
+									   "wine_get_dos_file_name");
+
+			char *unixPath = native_getenv("BRIDGE_PATH");
+			if (unixPath == NULL)
+			{
+				print("(Steam) BRIDGE_PATH not set\n");
+				ExitProcess(1);
+			}
+			WCHAR *dosPath = wine_get_dos_file_name(unixPath);
+			LPSTR asciiPath = (LPSTR)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH);
+			WideCharToMultiByte(CP_ACP, 0, dosPath, -1, asciiPath, MAX_PATH, NULL, NULL);
+
+			strcat_s(asciiPath, MAX_PATH, " --service");
+			print("(Steam) Binary path: %s\n", asciiPath);
+
+			if (strcmp(lpqsc->lpBinaryPathName, asciiPath) != 0)
+			{
+				print("(Steam) Service binary path is not correct, updating...\n");
+				ChangeServiceConfig(schService, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE,
+									asciiPath, NULL, NULL, NULL, NULL, NULL, NULL);
+			}
+			else
+				print("(Steam) Service binary path is correct\n");
+			HeapFree(GetProcessHeap(), 0, asciiPath);
+		}
+
+		print("(Steam) Starting service...\n");
+		if (StartService(schService, 0, NULL) == FALSE)
+		{
+			if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+			{
+				print("(Steam) Service is already running\n");
+				CloseServiceHandle(schService);
+				CloseServiceHandle(hSCManager);
+				ExitProcess(0);
+			}
+
+			print("StartService: %s\n", GetErrorMessage());
+			MessageBox(NULL, GetErrorMessage(),
+					   "StartService",
+					   MB_OK | MB_ICONSTOP);
+			ExitProcess(1);
+		}
+
+		print("(Steam) Service started successfully, exiting...\n");
+		CloseServiceHandle(schService);
+		CloseServiceHandle(hSCManager);
+		ExitProcess(0);
+	}
+	else if (strcmp(argv[1], "--install") == 0)
+	{
+		char filename[MAX_PATH];
+		GetModuleFileName(NULL, filename, MAX_PATH);
+		CopyFile(filename, "C:\\bridge.exe", FALSE);
+
+		InstallService(SERVICE_AUTO_START, "C:\\bridge.exe --service");
+		ExitProcess(0);
+	}
+	else if (strcmp(argv[1], "--uninstall") == 0)
+	{
+		RemoveService();
+		ExitProcess(0);
+	}
+	else if (strcmp(argv[1], "--help") == 0)
+	{
+		printf("Usage:\n");
+		printf("  %s [args]\n", argv[0]);
+		printf("  --help       - Show this help\n");
+		printf("  --install    - Install service\n");
+		printf("        This will copy the binary to C:\\bridge.exe and register it as a service\n");
+		printf("  --uninstall  - Uninstall service\n");
+		printf("        This will remove the service and delete C:\\bridge.exe\n");
+		printf("  --steam      - Reserved for Steam\n");
+		printf("        This will start the service and exit (used with bridge.sh)\n");
+		printf("  --no-service - Do not run as service\n");
+		printf("        (only for --steam)\n");
+		printf("  --service    - Reserved for service\n");
+		ExitProcess(0);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -95,39 +289,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc > 1)
-	{
-		if (strcmp(argv[1], "--service") == 0)
-		{
-			RunningAsService = TRUE;
-			print("Running as service\n");
-
-			SERVICE_TABLE_ENTRY ServiceTable[] =
-				{
-					{"rpc-bridge", (LPSERVICE_MAIN_FUNCTION)ServiceMain},
-					{NULL, NULL},
-				};
-
-			if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
-			{
-				print("Service failed to start\n");
-				return GetLastError();
-			}
-			return 0;
-		}
-		else if (strcmp(argv[1], "--install") == 0)
-			InstallService();
-		else if (strcmp(argv[1], "--uninstall") == 0)
-			RemoveService();
-		else if (strcmp(argv[1], "--help") == 0)
-		{
-			printf("Usage:\n");
-			printf("  %s [args]\n", argv[0]);
-			printf("  --install    - Install service\n");
-			printf("  --uninstall  - Uninstall service\n");
-			printf("  --help       - Show this help\n");
-			ExitProcess(0);
-		}
-	}
+		HandleArguments(argc, argv);
 
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
 				 NULL, 0, NULL);
