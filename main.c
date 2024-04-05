@@ -6,6 +6,7 @@
 FILE *g_logFile = NULL;
 BOOL RunningAsService = FALSE;
 
+void CreateGUI();
 void CreateBridge();
 void LaunchGame(int argc, char **argv);
 void ServiceMain(int argc, char *argv[]);
@@ -261,17 +262,25 @@ void HandleArguments(int argc, char *argv[])
 	else if (strcmp(argv[1], "--help") == 0)
 	{
 		printf("Usage:\n");
-		printf("  %s [args]\n", argv[0]);
-		printf("  --help       - Show this help\n");
-		printf("  --install    - Install service\n");
-		printf("        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n");
-		printf("  --uninstall  - Uninstall service\n");
-		printf("        This will remove the service and delete C:\\windows\\bridge.exe\n");
-		printf("  --steam      - Reserved for Steam\n");
-		printf("        This will start the service and exit (used with bridge.sh)\n");
-		printf("  --no-service - Do not run as service\n");
-		printf("        (only for --steam)\n");
-		printf("  --service    - Reserved for service\n");
+		printf("  %s [args]\n\n", argv[0]);
+
+		printf("Arguments:\n");
+		printf("  --help         Show this help\n\n");
+
+		printf("  --install      Install service\n");
+		printf("        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n\n");
+		printf("  --uninstall    Uninstall service\n");
+
+		printf("        This will remove the service and delete C:\\windows\\bridge.exe\n\n");
+		printf("  --steam        Reserved for Steam\n");
+
+		printf("        This will start the service and exit (used with bridge.sh)\n\n");
+		printf("  --no-service   Do not run as service\n");
+
+		printf("        (only for --steam)\n\n");
+		printf("  --service      Reserved for service\n\n");
+
+		printf("Note: If no arguments are provided, the GUI will be shown instead\n");
 		ExitProcess(0);
 	}
 }
@@ -290,6 +299,8 @@ int main(int argc, char *argv[])
 
 	if (argc > 1)
 		HandleArguments(argc, argv);
+	else
+		CreateGUI();
 
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
 				 NULL, 0, NULL);
