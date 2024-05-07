@@ -299,11 +299,13 @@ void ConnectToSocket(int fd)
 	}
 }
 
+HANDLE hOut = NULL;
 void PipeBufferInThread(LPVOID lpParam)
 {
 	bridge_thread *bt = (bridge_thread *)lpParam;
 	print("In thread started using fd %d and pipe %#x\n",
 		  bt->fd, bt->hPipe);
+	int EOFCount = 0;
 	while (TRUE)
 	{
 		char buffer[1024];
@@ -317,12 +319,22 @@ void PipeBufferInThread(LPVOID lpParam)
 			continue;
 		}
 
+		if (EOFCount > 4)
+		{
+			print("EOF count exceeded\n");
+			RetryNewConnection = TRUE;
+			TerminateThread(hOut, 0);
+			break;
+		}
+
 		if (unlikely(read == 0))
 		{
 			print("EOF\n");
 			Sleep(1000);
+			EOFCount++;
 			continue;
 		}
+		EOFCount = 0;
 
 		print("Reading %d bytes from unix pipe: \"", read);
 		for (int i = 0; i < read; i++)
@@ -523,10 +535,10 @@ NewConnection:
 							  (LPVOID)&bt,
 							  0, NULL);
 
-	HANDLE hOut = CreateThread(NULL, 0,
-							   (LPTHREAD_START_ROUTINE)PipeBufferOutThread,
-							   (LPVOID)&bt,
-							   0, NULL);
+	hOut = CreateThread(NULL, 0,
+						(LPTHREAD_START_ROUTINE)PipeBufferOutThread,
+						(LPVOID)&bt,
+						0, NULL);
 
 	if (hIn == NULL || hOut == NULL)
 	{
