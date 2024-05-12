@@ -164,13 +164,26 @@ static inline int sys_connect(int s, caddr_t name, socklen_t namelen)
 
 char *native_getenv(const char *name)
 {
+	static char lpBuffer[512];
+	DWORD ret = GetEnvironmentVariable("BRIDGE_RPC_PATH", lpBuffer, sizeof(lpBuffer));
+	if (ret != 0)
+		return lpBuffer;
+
 	if (!IsLinux)
 	{
 		char *value = getenv(name);
 		if (value == NULL)
 		{
 			print("Failed to get environment variable: %s\n", name);
-			return NULL;
+
+			/* Use GetEnvironmentVariable as a last resort */
+			DWORD ret = GetEnvironmentVariable(name, lpBuffer, sizeof(lpBuffer));
+			if (ret == 0)
+			{
+				print("GetEnvironmentVariable(\"%s\", ...) failed: %d\n", name, ret);
+				return NULL;
+			}
+			return lpBuffer;
 		}
 		return value;
 	}

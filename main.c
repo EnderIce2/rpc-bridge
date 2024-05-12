@@ -259,6 +259,19 @@ void HandleArguments(int argc, char *argv[])
 		RemoveService();
 		ExitProcess(0);
 	}
+	else if (strcmp(argv[1], "--rpc") == 0)
+	{
+		if (argc < 3)
+		{
+			print("No directory provided\n");
+			ExitProcess(1);
+		}
+
+		SetEnvironmentVariable("BRIDGE_RPC_PATH", argv[2]);
+		print("BRIDGE_RPC_PATH has been set to \"%s\"\n", argv[2]);
+		CreateBridge();
+		ExitProcess(0);
+	}
 	else if (strcmp(argv[1], "--help") == 0)
 	{
 		printf("Usage:\n");
@@ -269,16 +282,20 @@ void HandleArguments(int argc, char *argv[])
 
 		printf("  --install      Install service\n");
 		printf("        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n\n");
+
 		printf("  --uninstall    Uninstall service\n");
-
 		printf("        This will remove the service and delete C:\\windows\\bridge.exe\n\n");
+
 		printf("  --steam        Reserved for Steam\n");
-
 		printf("        This will start the service and exit (used with bridge.sh)\n\n");
-		printf("  --no-service   Do not run as service\n");
 
+		printf("  --no-service   Do not run as service\n");
 		printf("        (only for --steam)\n\n");
+
 		printf("  --service      Reserved for service\n\n");
+
+		printf("  --rpc <dir>    Set RPC_PATH environment variable\n");
+		printf("        This is used to specify the directory where 'discord-ipc-0' is located\n\n");
 
 		printf("Note: If no arguments are provided, the GUI will be shown instead\n");
 		ExitProcess(0);
