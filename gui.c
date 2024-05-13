@@ -1,3 +1,4 @@
+#include <windowsx.h>
 #include <windows.h>
 #include <winuser.h>
 #include <assert.h>
@@ -17,19 +18,44 @@ void CreateBridge();
 extern BOOL IsLinux;
 
 HWND hwnd = NULL;
+HANDLE hBridge = NULL;
+extern HANDLE hOut;
+extern HANDLE hIn;
 
+BOOL IsAlreadyRunning = FALSE;
 VOID HandleStartButton(BOOL Silent)
 {
+	if (IsAlreadyRunning)
+	{
+		HWND item = GetDlgItem(hwnd, 4);
+		SetWindowText(item, "Do you want to start, install or remove the bridge?");
+		RedrawWindow(item, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+		item = GetDlgItem(hwnd, /* Start Button */ 1);
+		Button_SetText(item, "Start");
+		EnableWindow(item, FALSE);
+		RedrawWindow(item, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+
+		print("Killing %#x, %#lx and waiting for %#lx\n", hIn, hOut, hBridge);
+		TerminateThread(hIn, 0);
+		TerminateThread(hOut, 0);
+		WaitForSingleObject(hBridge, INFINITE);
+
+		EnableWindow(item, TRUE);
+		IsAlreadyRunning = FALSE;
+		return;
+	}
+
 	if (!IsLinux)
 	{
-		ShowWindow(hwnd, SW_MINIMIZE);
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
-					 NULL, 0, NULL);
+		hBridge = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
+							   NULL, 0, NULL);
 
 		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
-		EnableWindow(item, FALSE);
+		Button_SetText(item, "Stop");
 		item = GetDlgItem(hwnd, 4);
 		SetWindowText(item, "Bridge is running...");
+		IsAlreadyRunning = TRUE;
+		ShowWindow(hwnd, SW_MINIMIZE);
 		return;
 	}
 
@@ -48,14 +74,15 @@ VOID HandleStartButton(BOOL Silent)
 
 		/* Service doesn't exist; running without any service */
 
-		ShowWindow(hwnd, SW_MINIMIZE);
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
-					 NULL, 0, NULL);
+		hBridge = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
+							   NULL, 0, NULL);
 
 		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
-		EnableWindow(item, FALSE);
+		Button_SetText(item, "Stop");
 		item = GetDlgItem(hwnd, 4);
-
+		SetWindowText(item, "Bridge is running...");
+		IsAlreadyRunning = TRUE;
+		ShowWindow(hwnd, SW_MINIMIZE);
 		return;
 	}
 

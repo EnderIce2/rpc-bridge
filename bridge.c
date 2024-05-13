@@ -63,6 +63,8 @@ LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
 BOOL RetryNewConnection;
 BOOL IsLinux;
+HANDLE hOut = NULL;
+HANDLE hIn = NULL;
 
 static force_inline int linux_syscall(int num,
 									  int arg1, int arg2, int arg3,
@@ -312,7 +314,6 @@ void ConnectToSocket(int fd)
 	}
 }
 
-HANDLE hOut = NULL;
 void PipeBufferInThread(LPVOID lpParam)
 {
 	bridge_thread *bt = (bridge_thread *)lpParam;
@@ -543,10 +544,10 @@ NewConnection:
 
 	bridge_thread bt = {fd, hPipe};
 
-	HANDLE hIn = CreateThread(NULL, 0,
-							  (LPTHREAD_START_ROUTINE)PipeBufferInThread,
-							  (LPVOID)&bt,
-							  0, NULL);
+	hIn = CreateThread(NULL, 0,
+					   (LPTHREAD_START_ROUTINE)PipeBufferInThread,
+					   (LPVOID)&bt,
+					   0, NULL);
 	print("Created in thread %#lx\n", hIn);
 
 	hOut = CreateThread(NULL, 0,
