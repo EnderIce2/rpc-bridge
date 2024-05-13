@@ -36,8 +36,10 @@ VOID HandleStartButton(BOOL Silent)
 		RedrawWindow(item, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
 
 		print("Killing %#x, %#lx and waiting for %#lx\n", hIn, hOut, hBridge);
-		TerminateThread(hIn, 0);
-		TerminateThread(hOut, 0);
+		if (hIn != NULL)
+			TerminateThread(hIn, 0);
+		if (hOut != NULL)
+			TerminateThread(hOut, 0);
 		WaitForSingleObject(hBridge, INFINITE);
 
 		EnableWindow(item, TRUE);
@@ -162,6 +164,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 		ExitProcess(0);
 		break;
+	case WM_CTLCOLORSTATIC:
+	{
+		HDC hdcStatic = (HDC)wParam;
+		SetBkMode(hdcStatic, TRANSPARENT);
+		return (INT_PTR)(HBRUSH)GetStockObject(NULL_BRUSH);
+	}
 	default:
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
@@ -204,8 +212,8 @@ VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallSty
 	CloseServiceHandle(hSCManager);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-				   LPSTR lpCmdLine, int nCmdShow)
+int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+					 LPSTR lpCmdLine, int nCmdShow)
 {
 	INT btnStartStyle, btnRemoveStyle, btnInstallStyle;
 	SetButtonStyles(&btnStartStyle, &btnRemoveStyle, &btnInstallStyle);
@@ -228,7 +236,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	assert(RegisterClassEx(&wc));
 
-	hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
+	hwnd = CreateWindowEx(WS_EX_WINDOWEDGE,
 						  szClassName,
 						  "Discord RPC Bridge",
 						  WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
@@ -237,25 +245,43 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 						  400, 150,
 						  NULL, NULL, hInstance, NULL);
 
-	CreateWindow("STATIC", "Do you want to start, install or remove the bridge?",
-				 WS_CHILD | WS_VISIBLE | SS_CENTER,
-				 0, 0, 400, 50,
-				 hwnd, (HMENU)4, hInstance, NULL);
+	HICON hIcon = LoadIcon(hInstance, "IDI_ICON_128");
+	SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
 
-	CreateWindow("BUTTON", "Start",
-				 btnStartStyle,
-				 50, 50, 100, 30,
-				 hwnd, (HMENU)1, hInstance, NULL);
+	HWND hLbl4 = CreateWindowEx(WS_EX_TRANSPARENT,
+								"STATIC", "Do you want to start, install or remove the bridge?",
+								WS_CHILD | WS_VISIBLE | SS_CENTER,
+								0, 15, 400, 25,
+								hwnd, (HMENU)4, hInstance, NULL);
 
-	CreateWindow("BUTTON", "Install",
-				 btnInstallStyle,
-				 150, 50, 100, 30,
-				 hwnd, (HMENU)2, hInstance, NULL);
+	HWND hbtn1 = CreateWindow("BUTTON", "Start",
+							  btnStartStyle,
+							  40, 60, 100, 30,
+							  hwnd, (HMENU)1, hInstance, NULL);
 
-	CreateWindow("BUTTON", "Remove",
-				 btnRemoveStyle,
-				 250, 50, 100, 30,
-				 hwnd, (HMENU)3, hInstance, NULL);
+	HWND hbtn2 = CreateWindow("BUTTON", "Install",
+							  btnInstallStyle,
+							  150, 60, 100, 30,
+							  hwnd, (HMENU)2, hInstance, NULL);
+
+	HWND hbtn3 = CreateWindow("BUTTON", "Remove",
+							  btnRemoveStyle,
+							  260, 60, 100, 30,
+							  hwnd, (HMENU)3, hInstance, NULL);
+
+	HDC hDC = GetDC(hwnd);
+	int nHeight = -MulDiv(11, GetDeviceCaps(hDC, LOGPIXELSY), 72);
+
+	HFONT hFont = CreateFont(nHeight, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET,
+							 OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+							 DEFAULT_PITCH | FF_DONTCARE, TEXT("Segoe UI"));
+	ReleaseDC(hwnd, hDC);
+
+	SendMessage(hwnd, WM_SETFONT, hFont, TRUE);
+	SendMessage(hLbl4, WM_SETFONT, hFont, TRUE);
+	SendMessage(hbtn1, WM_SETFONT, hFont, TRUE);
+	SendMessage(hbtn2, WM_SETFONT, hFont, TRUE);
+	SendMessage(hbtn3, WM_SETFONT, hFont, TRUE);
 
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);
@@ -272,5 +298,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 void CreateGUI()
 {
 	ShowWindow(GetConsoleWindow(), SW_MINIMIZE);
-	ExitProcess(WinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL));
+	ExitProcess(__WinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL));
 }
