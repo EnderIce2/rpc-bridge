@@ -34,6 +34,7 @@ theme:
     text: Roboto
     code: Roboto Mono
   favicon: assets/favicon.png
+  logo: assets/favicon.png
   icon:
     logo: logo
     admonition:
