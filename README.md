@@ -56,7 +56,7 @@ On macOS, follow [these instructions](https://enderice2.github.io/rpc-bridge/ins
 
 ## Compiling from source
 
-- Install the `wine`, `x86_64-w64-mingw32-gcc` and `make` packages.
+- Install the `wine`, `gcc-mingw-w64` and `make` packages.
 - Open a terminal in the directory that contains this file and run `make`.
 - The compiled executable will be located in `build/bridge.exe`.
 
