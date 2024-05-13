@@ -1,12 +1,3 @@
 {
-	"C_Cpp.default.compilerPath": "/usr/bin/i686-w64-mingw32-gcc",
-	"files.associations": {
-		"*.su": "tsv",
-		"thread": "cpp",
-		"bitset": "cpp",
-		"initializer_list": "cpp",
-		"windows.h": "c",
-		"namedpipeapi.h": "c",
-		"*.rh": "c"
-	}
+	"C_Cpp.default.compilerPath": "/usr/bin/x86_64-w64-mingw32-gcc",
 }
