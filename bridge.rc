@@ -5,12 +5,6 @@
 #define VER_VERSION             1,1,0,0
 #define VER_VERSION_STR         "1.1\0"
 
-#ifndef DEBUG
-#define VER_DEBUG                   0
-#else
-#define VER_DEBUG                   VS_FF_DEBUG
-#endif
-
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION     VER_VERSION
 PRODUCTVERSION  VER_VERSION
