@@ -44,7 +44,18 @@ VOID HandleStartButton(BOOL Silent)
 									   SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG | SERVICE_START);
 	if (schService == NULL)
 	{
-		print("OpenService failed: %s\n", GetErrorMessage());
+		// print("OpenService failed: %s\n", GetErrorMessage());
+
+		/* Service doesn't exist; running without any service */
+
+		ShowWindow(hwnd, SW_MINIMIZE);
+		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
+					 NULL, 0, NULL);
+
+		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
+		EnableWindow(item, FALSE);
+		item = GetDlgItem(hwnd, 4);
+
 		return;
 	}
 
@@ -160,10 +171,7 @@ VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallSty
 			*btnStartStyle |= WS_DISABLED;
 	}
 	else
-	{
-		*btnStartStyle |= WS_DISABLED;
 		*btnRemoveStyle |= WS_DISABLED;
-	}
 
 	CloseServiceHandle(schService);
 	CloseServiceHandle(hSCManager);
