@@ -162,6 +162,7 @@ static inline int sys_connect(int s, caddr_t name, socklen_t namelen)
 		return darwin_syscall(__darwin_connect, s, name, namelen, 0, 0, 0);
 }
 
+void *environStr = NULL;
 char *native_getenv(const char *name)
 {
 	static char lpBuffer[512];
@@ -188,24 +189,23 @@ char *native_getenv(const char *name)
 		return value;
 	}
 
-	/* I hope the 0x10000 is okay */
-	void *environStr = sys_mmap(0x10000, 4096, PROT_READ | PROT_WRITE,
-								MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-	if (environStr == MAP_FAILED)
+	/* I hope the 0x20000 is okay */
+	if (environStr == NULL)
 	{
-		print("Failed to allocate environ string: %d\n", (intptr_t)environStr);
-		return NULL;
+		environStr = sys_mmap(0x20000, 4096, PROT_READ | PROT_WRITE,
+							  MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+		print("Allocated 4096 bytes at %#lx\n", environStr);
 	}
 
 	if ((uintptr_t)environStr > 0x7effffff)
-		print("Warning: environStr %p is above 2GB\n", environStr);
+		print("Warning: environStr %#lx is above 2GB\n", environStr);
 
 	const char *linux_environ = "/proc/self/environ";
 	memcpy(environStr, linux_environ, strlen(linux_environ) + 1);
 
 	int fd = sys_open(environStr, O_RDONLY, 0);
 
-	sys_munmap(environStr, 4096);
+	// sys_munmap(environStr, 4096);
 	if (fd < 0)
 	{
 		print("Failed to open /proc/self/environ: %d\n", fd);
@@ -547,11 +547,13 @@ NewConnection:
 							  (LPTHREAD_START_ROUTINE)PipeBufferInThread,
 							  (LPVOID)&bt,
 							  0, NULL);
+	print("Created in thread %#lx\n", hIn);
 
 	hOut = CreateThread(NULL, 0,
 						(LPTHREAD_START_ROUTINE)PipeBufferOutThread,
 						(LPVOID)&bt,
 						0, NULL);
+	print("Created out thread %#lx\n", hOut);
 
 	if (hIn == NULL || hOut == NULL)
 	{
