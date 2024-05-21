@@ -182,12 +182,12 @@ VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallSty
 	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
 	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
 
-	if (!IsLinux)
-	{
-		*btnInstallStyle |= WS_DISABLED;
-		*btnRemoveStyle |= WS_DISABLED;
-		return;
-	}
+	// if (!IsLinux)
+	// {
+	// 	*btnInstallStyle |= WS_DISABLED;
+	// 	*btnRemoveStyle |= WS_DISABLED;
+	// 	return;
+	// }
 
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge", SERVICE_START | SERVICE_QUERY_STATUS);

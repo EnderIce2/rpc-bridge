@@ -248,22 +248,32 @@ char *native_getenv(const char *name)
 void ConnectToSocket(int fd)
 {
 	print("Connecting to socket\n");
-	const char *runtime;
-	if (IsLinux)
-		runtime = native_getenv("XDG_RUNTIME_DIR");
-	else
-		runtime = native_getenv("TMPDIR");
-	if (runtime == NULL)
-	{
-		print("IPC directory not set\n");
-		if (!RunningAsService)
-			MessageBox(NULL, "IPC directory not set",
-					   "Environment variable not set",
-					   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
-	}
+    const char *runtime;
+    if (IsLinux)
+        runtime = native_getenv("XDG_RUNTIME_DIR");
+    else
+        runtime = native_getenv("TMPDIR");
+    if (runtime == NULL)
+    {
+        runtime = "/tmp/rpc-bridge/tmpdir";
+        print("IPC directory not set, fallback to /tmp/rpc-bridge/tmpdir\n");
 
-	print("IPC directory: %s\n", runtime);
+        // Check if the directory exists
+        DWORD dwAttrib = GetFileAttributes(runtime);
+        if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            print("IPC directory does not exist: %s\n", runtime);
+            // Handle the case where the directory doesn't exist
+            // For example, create the directory
+            if (!RunningAsService)
+                MessageBox(NULL, "IPC directory does not exist",
+                           "Directory not found",
+                           MB_OK | MB_ICONSTOP);
+            ExitProcess(1);
+        }
+    }
+
+    print("IPC directory: %s\n", runtime);
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
 	const char *discordUnixPipes[] = {
