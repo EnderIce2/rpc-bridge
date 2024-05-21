@@ -262,7 +262,7 @@ void ConnectToSocket(int fd)
         DWORD dwAttrib = GetFileAttributes(runtime);
         if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
         {
-            print("IPC directory does not exist: %s\n", runtime);
+            print("IPC directory does not exist: %s. If you're on MacOS, see the github guide on how to install the launchd service.\n", runtime);
             // Handle the case where the directory doesn't exist
             // For example, create the directory
             if (!RunningAsService)
