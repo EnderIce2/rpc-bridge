@@ -43,6 +43,8 @@
 		__attribute__((__always_inline__, __gnu_inline__))
 #define naked __attribute__((naked))
 
+#define BUFFER_LENGTH 2048
+
 typedef unsigned short sa_family_t;
 typedef char *caddr_t;
 typedef unsigned socklen_t;
@@ -322,7 +324,7 @@ void PipeBufferInThread(LPVOID lpParam)
 	int EOFCount = 0;
 	while (TRUE)
 	{
-		char buffer[1024];
+		char buffer[BUFFER_LENGTH];
 		int read = sys_read(bt->fd, buffer, sizeof(buffer));
 
 		if (unlikely(read < 0))
@@ -417,7 +419,7 @@ void PipeBufferOutThread(LPVOID lpParam)
 		  bt->fd, bt->hPipe);
 	while (TRUE)
 	{
-		char buffer[1024];
+		char buffer[BUFFER_LENGTH];
 		DWORD dwRead;
 
 		if (unlikely(!ReadFile(bt->hPipe, buffer, sizeof(buffer),
