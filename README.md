@@ -54,7 +54,7 @@ Logs are stored in `C:\windows\logs\bridge.log`.
 ## macOS
 
 The steps to install are almost the same. The only difference is that if you want the service to work, you will have to use [this script](build/launchd.sh) to install a launch agent that will symlink the `$TMPDIR` to a static path (`/tmp/rpc-bridge/tmpdir`).
-To do so, download it, make it executable (`chmod +x launchd.sh`) and run `./launchd.sh install`. You can uninstall the agent by running `./launchd.sh uninstall`.
+To do so, download it, make it executable (`chmod +x launchd.sh`) and run `./launchd.sh install`. You can uninstall the agent by running `./launchd.sh remove`.
 
 ## Compiling from source
 
