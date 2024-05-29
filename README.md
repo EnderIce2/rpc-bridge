@@ -1,3 +1,4 @@
+# Beta macos fix
 # Discord RPC Bridge for Wine
 
 ![GitHub License](https://img.shields.io/github/license/EnderIce2/rpc-bridge?style=for-the-badge)
@@ -25,6 +26,8 @@ Logs are stored in `C:\windows\logs\bridge.log`.
     - ![gui](docs/assets/gui.png)
 - To remove, the same process can be followed, but click `Remove` instead.
 
+*Note, an [extra step](https://github.com/EnderIce2/rpc-bridge?tab=readme-ov-file#macos) is needed on MacOS*
+
 ##### Lutris
 
 - Click on a game and select `Run EXE inside Wine prefix`.
@@ -50,9 +53,17 @@ Logs are stored in `C:\windows\logs\bridge.log`.
 		- Globally
 			- `flatpak override --user --filesystem=xdg-run/discord-ipc-0`
 
-## macOS
+##### MacOS
 
-On macOS, follow [these instructions](https://enderice2.github.io/rpc-bridge/installation.html#macos).
+The steps for MacOS are almost the same, but due to the way `$TMPDIR` works, you will have to install a **LaunchAgent**.
+
+- Download the latest build from the [releases](https://github.com/EnderIce2/rpc-bridge/releases)
+- Open the archive and make the `launchd.sh` script executable by doing: `chmod +x launchd.sh`
+- To **install** the LaunchAgent, run `./launchd install` and to **remove** it simply run `./launchd remove`.
+
+The script will add a LaunchAgent to your user, that will symlink the `$TMPDIR` directory to `/tmp/rpc-bridge/tmpdir`.
+
+*Note: You will need to launch the `bridge.exe` file manually in Wine atleast one time for it to register and launch automatically the next times.*
 
 ## Compiling from source
 
