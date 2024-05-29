@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script is used to create a LaunchAgent on MacOS, to support the service functionnality.
+# This script is used to create a LaunchAgent on MacOS, to support the service functionality.
 # Usage: ./launchd.sh (install|remove)
 
 SYMLINK=/tmp/rpc-bridge/tmpdir
@@ -16,7 +16,7 @@ function install() {
     if [ ! -d "$LOCATION" ]; then
         mkdir -p "$LOCATION"
     fi
-    
+
     # Link script
     if [ -f "$SCRIPT" ]; then
         rm -f "$SCRIPT"
@@ -27,9 +27,9 @@ if [ ! -d "\$TARGET_DIR" ]; then
     mkdir -p "\$TARGET_DIR"
 fi
 rm -rf "\$TARGET_DIR"
-    ln -s "\$TMPDIR" "\$TARGET_DIR"" > "$SCRIPT"
+ln -s "\$TMPDIR" "\$TARGET_DIR"" > "$SCRIPT"
     chmod +x "$SCRIPT"
-    
+
     # LaunchAgent
     if [ -f "$AGENT" ]; then
         rm -f "$AGENT"
@@ -50,13 +50,12 @@ rm -rf "\$TARGET_DIR"
 </plist>" > "$AGENT"
     launchctl load "$AGENT"
     echo "LaunchAgent has been installed."
-    
 }
 
 function remove() {
-    rm -rf "$SYMLINK"
-    rm -rf "$LOCATION"
+    rm -f "$SYMLINK"
     rm -f "$SCRIPT"
+    rmdir "$LOCATION"
     if [ -f "$AGENT" ]; then
         launchctl unload "$AGENT"
     fi
