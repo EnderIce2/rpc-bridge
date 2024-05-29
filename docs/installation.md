@@ -64,14 +64,17 @@ This method is recommended because it's easier to manage.
 
 ## macOS
 
-If using the default Wine prefix (`~/.wine`), you can follow the same steps as in Wine.
+The steps for MacOS are almost the same, but due to the way `$TMPDIR` works, you will have to install a **LaunchAgent**.
 
-Registering as a service [is not supported](https://github.com/EnderIce2/rpc-bridge/issues/1#issuecomment-2103423242 "Bridge can't get $TMPDIR unless is set with --rpc. See note below").
+- Download the latest build from the [releases](https://github.com/EnderIce2/rpc-bridge/releases)
+- Open the archive and make the `launchd.sh` script executable by doing: `chmod +x launchd.sh`
+- To **install** the LaunchAgent, run `./launchd install` and to **remove** it simply run `./launchd remove`.
+
+The script will add a LaunchAgent to your user, that will symlink the `$TMPDIR` directory to `/tmp/rpc-bridge/tmpdir`.
 
 !!! info "Note"
+    You will need to launch the `bridge.exe` file manually in Wine at least one time for it to register and launch automatically the next times.
 
-    Since macOS doesn't have `/proc/self/environ` and `$TMPDIR` is neither always set nor the same after reboots, so you will need to [add `--rpc "$TMPDIR"` to the `bridge.exe` arguments](https://github.com/EnderIce2/rpc-bridge/issues/1#issuecomment-2104797235).  
-    If you don't encounter any issues, you can ignore this step.
 
 ## Run without installing the service
 

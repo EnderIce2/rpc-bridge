@@ -62,7 +62,7 @@ The steps for MacOS are almost the same, but due to the way `$TMPDIR` works, you
 
 The script will add a LaunchAgent to your user, that will symlink the `$TMPDIR` directory to `/tmp/rpc-bridge/tmpdir`.
 
-*Note: You will need to launch the `bridge.exe` file manually in Wine atleast one time for it to register and launch automatically the next times.*
+*Note: You will need to launch the `bridge.exe` file manually in Wine at least one time for it to register and launch automatically the next times.*
 
 ## Compiling from source
 
