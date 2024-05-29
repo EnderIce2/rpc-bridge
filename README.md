@@ -1,4 +1,3 @@
-# Beta macos fix
 # Discord RPC Bridge for Wine
 
 ![GitHub License](https://img.shields.io/github/license/EnderIce2/rpc-bridge?style=for-the-badge)
