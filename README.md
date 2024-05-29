@@ -26,6 +26,8 @@ Logs are stored in `C:\windows\logs\bridge.log`.
     - ![gui](docs/assets/gui.png)
 - To remove, the same process can be followed, but click `Remove` instead.
 
+*Note, an [extra step]() is needed on MacOS*
+
 ##### Lutris
 
 - Click on a game and select `Run EXE inside Wine prefix`.
@@ -51,10 +53,17 @@ Logs are stored in `C:\windows\logs\bridge.log`.
 		- Globally
 			- `flatpak override --user --filesystem=xdg-run/discord-ipc-0`
 
-## macOS
+##### MacOS
 
-The steps to install are almost the same. The only difference is that if you want the service to work, you will have to use [this script](build/launchd.sh) to install a launch agent that will symlink the `$TMPDIR` to a static path (`/tmp/rpc-bridge/tmpdir`).
-To do so, download it, make it executable (`chmod +x launchd.sh`) and run `./launchd.sh install`. You can uninstall the agent by running `./launchd.sh remove`.
+The steps for MacOS are almost the same, but due to the way `$TMPDIR` works, you will have to install a **LaunchAgent**.
+
+- Download the latest build from the [releases](https://github.com/EnderIce2/rpc-bridge/releases)
+- Open the archive and make the `launchd.sh` script executable by doing: `chmod +x launchd.sh`
+- To **install** the LaunchAgent, run `./launchd install` and to **remove** it simply run `./launchd remove`.
+
+The script will add a LaunchAgent to your user, that will symlink the `$TMPDIR` directory to `/tmp/rpc-bridge/tmpdir`.
+
+*Note: You will need to launch the `bridge.exe` file manually in Wine atleast one time for it to register and launch automatically the next times.*
 
 ## Compiling from source
 
