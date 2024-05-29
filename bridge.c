@@ -250,32 +250,36 @@ char *native_getenv(const char *name)
 void ConnectToSocket(int fd)
 {
 	print("Connecting to socket\n");
-    const char *runtime;
-    if (IsLinux)
-        runtime = native_getenv("XDG_RUNTIME_DIR");
-    else
-        runtime = native_getenv("TMPDIR");
-    if (runtime == NULL)
-    {
-        runtime = "/tmp/rpc-bridge/tmpdir";
-        print("IPC directory not set, fallback to /tmp/rpc-bridge/tmpdir\n");
+	const char *runtime;
+	if (IsLinux)
+		runtime = native_getenv("XDG_RUNTIME_DIR");
+	else
+	{
+		runtime = native_getenv("TMPDIR");
+		if (runtime == NULL)
+		{
+			runtime = "/tmp/rpc-bridge/tmpdir";
+			print("IPC directory not set, fallback to /tmp/rpc-bridge/tmpdir\n");
 
-        // Check if the directory exists
-        DWORD dwAttrib = GetFileAttributes(runtime);
-        if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
-        {
-            print("IPC directory does not exist: %s. If you're on MacOS, see the github guide on how to install the launchd service.\n", runtime);
-            // Handle the case where the directory doesn't exist
-            // For example, create the directory
-            if (!RunningAsService)
-                MessageBox(NULL, "IPC directory does not exist",
-                           "Directory not found",
-                           MB_OK | MB_ICONSTOP);
-            ExitProcess(1);
-        }
-    }
+			// Check if the directory exists
+			DWORD dwAttrib = GetFileAttributes(runtime);
+			if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				print("IPC directory does not exist: %s. If you're on MacOS, see the github guide on how to install the launchd service.\n", runtime);
+				// Handle the case where the directory doesn't exist
+				// For example, create the directory
 
-    print("IPC directory: %s\n", runtime);
+				int result = MessageBox(NULL, "IPC directory does not exist\nDo you want to open the installation guide?",
+										"Directory not found",
+										MB_YESNO | MB_ICONSTOP);
+				if (result == IDYES)
+					ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/installation.html#macos", NULL, NULL, SW_SHOWNORMAL);
+				ExitProcess(1);
+			}
+		}
+	}
+
+	print("IPC directory: %s\n", runtime);
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
 	const char *discordUnixPipes[] = {
