@@ -72,9 +72,7 @@ void DetectWine()
 	{
 		int result = MessageBox(NULL, "This program is designed for Linux and macOS only!\nDo you want to proceed?",
 								NULL, MB_YESNO | MB_ICONQUESTION);
-		if (result == IDYES)
-			return;
-		else if (result == IDNO)
+		if (result == IDNO)
 			ExitProcess(1);
 	}
 

@@ -47,20 +47,6 @@ VOID HandleStartButton(BOOL Silent)
 		return;
 	}
 
-	if (!IsLinux)
-	{
-		hBridge = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
-							   NULL, 0, NULL);
-
-		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
-		Button_SetText(item, "Stop");
-		item = GetDlgItem(hwnd, 4);
-		SetWindowText(item, "Bridge is running...");
-		IsAlreadyRunning = TRUE;
-		ShowWindow(hwnd, SW_MINIMIZE);
-		return;
-	}
-
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (hSCManager == NULL)
 	{
@@ -72,7 +58,7 @@ VOID HandleStartButton(BOOL Silent)
 									   SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG | SERVICE_START);
 	if (schService == NULL)
 	{
-		// print("OpenService failed: %s\n", GetErrorMessage());
+		print("Service doesn't exist: %s\n", GetErrorMessage());
 
 		/* Service doesn't exist; running without any service */
 
@@ -115,6 +101,7 @@ VOID HandleStartButton(BOOL Silent)
 	CloseServiceHandle(hSCManager);
 	if (Silent == FALSE)
 		MessageBox(NULL, "Bridge service started successfully", "Info", MB_OK);
+	print("Bridge service started successfully\n");
 }
 
 VOID HandleInstallButton()
