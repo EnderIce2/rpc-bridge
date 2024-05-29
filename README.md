@@ -26,7 +26,7 @@ Logs are stored in `C:\windows\logs\bridge.log`.
     - ![gui](docs/assets/gui.png)
 - To remove, the same process can be followed, but click `Remove` instead.
 
-*Note, an [extra step]() is needed on MacOS*
+*Note, an [extra step](https://github.com/EnderIce2/rpc-bridge?tab=readme-ov-file#macos) is needed on MacOS*
 
 ##### Lutris
 
