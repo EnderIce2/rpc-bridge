@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script is used to create a LaunchAgent on MacOS, to support the service functionality.
 # Usage: ./launchd.sh (install|remove)
