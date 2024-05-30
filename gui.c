@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "resource.h"
+
 /**
  * The entire code could be better written, but at least it works.
  *
@@ -31,7 +33,7 @@ VOID HandleStartButton(BOOL Silent)
 		SetWindowText(item, "Do you want to start, install or remove the bridge?");
 		RedrawWindow(item, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
 		item = GetDlgItem(hwnd, /* Start Button */ 1);
-		Button_SetText(item, "Start");
+		Button_SetText(item, "&Start");
 		EnableWindow(item, FALSE);
 		RedrawWindow(item, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
 
@@ -66,7 +68,7 @@ VOID HandleStartButton(BOOL Silent)
 							   NULL, 0, NULL);
 
 		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
-		Button_SetText(item, "Stop");
+		Button_SetText(item, "&Stop");
 		item = GetDlgItem(hwnd, 4);
 		SetWindowText(item, "Bridge is running...");
 		IsAlreadyRunning = TRUE;
@@ -122,6 +124,44 @@ VOID HandleRemoveButton()
 	ExitProcess(0);
 }
 
+void ShowLicenseDialog()
+{
+	HMODULE hModule = GetModuleHandle(NULL);
+	HRSRC hRes = FindResource(hModule, MAKEINTRESOURCE(IDR_LICENSE_TXT), RT_RCDATA);
+	if (!hRes)
+	{
+		MessageBox(NULL, "Resource not found", "Error", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	HGLOBAL hResData = LoadResource(NULL, hRes);
+	if (!hResData)
+	{
+		MessageBox(NULL, "Resource failed to load", "Error", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	DWORD resSize = SizeofResource(NULL, hRes);
+	void *pRes = LockResource(hResData);
+	if (!pRes)
+	{
+		MessageBox(NULL, "Resource failed to lock", "Error", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	char *licenseText = (char *)malloc(resSize + 1);
+	if (!licenseText)
+	{
+		MessageBox(NULL, "Memory allocation failed", "Error", MB_OK | MB_ICONERROR);
+		return;
+	}
+
+	memcpy(licenseText, pRes, resSize);
+	licenseText[resSize] = '\0';
+	MessageBoxA(hwnd, licenseText, "About", MB_OK);
+	free(licenseText);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
@@ -139,6 +179,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case 3:
 			HandleRemoveButton();
 			break;
+		case IDM_VIEW_LOG:
+			ShellExecute(NULL, "open", "C:\\windows\\notepad.exe", "C:\\windows\\logs\\bridge.log", NULL, SW_SHOW);
+			break;
+		case IDM_HELP_DOCUMENTATION:
+			ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/index.html", NULL, NULL, SW_SHOWNORMAL);
+			break;
+		case IDM_HELP_LICENSE:
+			ShowLicenseDialog();
+			break;
+		case IDM_HELP_ABOUT:
+		{
+			char msg[256];
+			sprintf(msg, "rpc-bridge v%s\n\n"
+						 "Simple bridge that allows you to use Discord Rich Presence with Wine games/software.\n\n"
+						 "Created by EnderIce2\n\n"
+						 "Licensed under the MIT License",
+					VER_VERSION_STR);
+			MessageBox(NULL, msg, "About", MB_OK);
+			break;
+		}
 		default:
 			break;
 		}
@@ -165,9 +225,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallStyle)
 {
-	*btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
-	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
-	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON;
+	*btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
+	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
+	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
 
 	// if (!IsLinux)
 	// {
@@ -241,20 +301,23 @@ int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 								0, 15, 400, 25,
 								hwnd, (HMENU)4, hInstance, NULL);
 
-	HWND hbtn1 = CreateWindow("BUTTON", "Start",
+	HWND hbtn1 = CreateWindow("BUTTON", "&Start",
 							  btnStartStyle,
 							  40, 60, 100, 30,
 							  hwnd, (HMENU)1, hInstance, NULL);
 
-	HWND hbtn2 = CreateWindow("BUTTON", "Install",
+	HWND hbtn2 = CreateWindow("BUTTON", "&Install",
 							  btnInstallStyle,
 							  150, 60, 100, 30,
 							  hwnd, (HMENU)2, hInstance, NULL);
 
-	HWND hbtn3 = CreateWindow("BUTTON", "Remove",
+	HWND hbtn3 = CreateWindow("BUTTON", "&Remove",
 							  btnRemoveStyle,
 							  260, 60, 100, 30,
 							  hwnd, (HMENU)3, hInstance, NULL);
+
+	HMENU hMenu = LoadMenu(hInstance, MAKEINTRESOURCE(IDR_MAINMENU));
+	SetMenu(hwnd, hMenu);
 
 	HDC hDC = GetDC(hwnd);
 	int nHeight = -MulDiv(11, GetDeviceCaps(hDC, LOGPIXELSY), 72);
@@ -276,8 +339,11 @@ int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0) > 0)
 	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+		if (!IsDialogMessage(hwnd, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
 	return msg.wParam;
 }

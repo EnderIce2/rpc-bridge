@@ -11,7 +11,10 @@
 ## Commands
 
 - `--help` Show help message
-	- This will show the help message
+    - This will show the help message
+
+- `--version` Show version
+    - This will show the version of the program
 
 - `--install` Install the service
     - This will copy the binary to `C:\windows\bridge.exe` and register it as a service

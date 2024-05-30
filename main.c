@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "resource.h"
+
 FILE *g_logFile = NULL;
 BOOL RunningAsService = FALSE;
 
@@ -77,7 +79,6 @@ void DetectWine()
 	}
 
 	IsLinux = strcmp(__sysname, "Linux") == 0;
-	printf("Running on %s\n", __sysname);
 }
 
 void print(char const *fmt, ...)
@@ -270,32 +271,40 @@ void HandleArguments(int argc, char *argv[])
 		CreateBridge();
 		ExitProcess(0);
 	}
+	else if (strcmp(argv[1], "--version") == 0)
+	{
+		printf("%s\n", VER_VERSION_STR);
+		ExitProcess(0);
+	}
 	else if (strcmp(argv[1], "--help") == 0)
 	{
-		printf("Usage:\n");
-		printf("  %s [args]\n\n", argv[0]);
-
-		printf("Arguments:\n");
-		printf("  --help         Show this help\n\n");
-
-		printf("  --install      Install service\n");
-		printf("        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n\n");
-
-		printf("  --uninstall    Uninstall service\n");
-		printf("        This will remove the service and delete C:\\windows\\bridge.exe\n\n");
-
-		printf("  --steam        Reserved for Steam\n");
-		printf("        This will start the service and exit (used with bridge.sh)\n\n");
-
-		printf("  --no-service   Do not run as service\n");
-		printf("        (only for --steam)\n\n");
-
-		printf("  --service      Reserved for service\n\n");
-
-		printf("  --rpc <dir>    Set RPC_PATH environment variable\n");
-		printf("        This is used to specify the directory where 'discord-ipc-0' is located\n\n");
-
-		printf("Note: If no arguments are provided, the GUI will be shown instead\n");
+		printf("Usage:\n"
+			   "  %s [args]\n"
+			   "\n"
+			   "Arguments:\n"
+			   "  --help         Show this help\n"
+			   "\n"
+			   "  --version      Show version\n"
+			   "\n"
+			   "  --install      Install service\n"
+			   "        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n"
+			   "\n"
+			   "  --uninstall    Uninstall service\n"
+			   "        This will remove the service and delete C:\\windows\\bridge.exe\n"
+			   "\n"
+			   "  --steam        Reserved for Steam\n"
+			   "        This will start the service and exit (used with bridge.sh)\n"
+			   "\n"
+			   "  --no-service   Do not run as service\n"
+			   "        (only for --steam)\n"
+			   "\n"
+			   "  --service      Reserved for service\n"
+			   "\n"
+			   "  --rpc <dir>    Set RPC_PATH environment variable\n"
+			   "        This is used to specify the directory where 'discord-ipc-0' is located\n"
+			   "\n"
+			   "Note: If no arguments are provided, the GUI will be shown instead\n",
+			   argv[0]);
 		ExitProcess(0);
 	}
 }
