@@ -504,7 +504,7 @@ NewConnection:
 		CreateNamedPipe("\\\\.\\pipe\\discord-ipc-0",
 						PIPE_ACCESS_DUPLEX,
 						PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-						1, 1024, 1024, 0, NULL);
+						PIPE_UNLIMITED_INSTANCES, BUFFER_LENGTH, BUFFER_LENGTH, 0, NULL);
 
 	if (hPipe == INVALID_HANDLE_VALUE)
 	{
