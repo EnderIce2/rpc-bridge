@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "bridge.h"
 #include "resource.h"
 
 /**
@@ -17,7 +18,8 @@ void print(char const *fmt, ...);
 void InstallService(int ServiceStartType, LPCSTR Path);
 void RemoveService();
 void CreateBridge();
-extern BOOL IsLinux;
+extern OS_INFO OSInfo;
+extern char *logFilePath;
 
 HWND hwnd = NULL;
 HANDLE hBridge = NULL;
@@ -49,7 +51,7 @@ VOID HandleStartButton(BOOL Silent)
 		return;
 	}
 
-	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
 	if (hSCManager == NULL)
 	{
 		print("OpenSCManager failed: %s\n", GetErrorMessage());
@@ -180,7 +182,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			HandleRemoveButton();
 			break;
 		case IDM_VIEW_LOG:
-			ShellExecute(NULL, "open", "C:\\windows\\notepad.exe", "C:\\windows\\logs\\bridge.log", NULL, SW_SHOW);
+			ShellExecute(NULL, "open", "C:\\windows\\notepad.exe", logFilePath, NULL, SW_SHOW);
 			break;
 		case IDM_HELP_DOCUMENTATION:
 			ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/index.html", NULL, NULL, SW_SHOWNORMAL);
@@ -228,13 +230,6 @@ VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallSty
 	*btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
 	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
 	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
-
-	// if (!IsLinux)
-	// {
-	// 	*btnInstallStyle |= WS_DISABLED;
-	// 	*btnRemoveStyle |= WS_DISABLED;
-	// 	return;
-	// }
 
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge", SERVICE_START | SERVICE_QUERY_STATUS);

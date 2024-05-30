@@ -3,10 +3,12 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "bridge.h"
 #include "resource.h"
 
 FILE *g_logFile = NULL;
 BOOL RunningAsService = FALSE;
+char *logFilePath = NULL;
 
 void CreateGUI();
 void CreateBridge();
@@ -15,7 +17,7 @@ void ServiceMain(int argc, char *argv[]);
 void InstallService(int ServiceStartType, LPCSTR Path);
 char *native_getenv(const char *name);
 void RemoveService();
-extern BOOL IsLinux;
+extern OS_INFO OSInfo;
 
 LPTSTR GetErrorMessage()
 {
@@ -57,11 +59,8 @@ void DetectWine()
 	}
 
 	if (!GetProcAddress(hNTdll, "wine_get_version"))
-	{
-		MessageBox(NULL, "This program is only intended to run under Wine.",
-				   GetErrorMessage(), MB_OK | MB_ICONINFORMATION);
-		ExitProcess(1);
-	}
+		return;
+	OSInfo.IsWine = TRUE;
 
 	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
 	wine_get_host_version = (void *)GetProcAddress(hNTdll, "wine_get_host_version");
@@ -78,7 +77,8 @@ void DetectWine()
 			ExitProcess(1);
 	}
 
-	IsLinux = strcmp(__sysname, "Linux") == 0;
+	OSInfo.IsLinux = strcmp(__sysname, "Linux") == 0;
+	OSInfo.IsDarwin = strcmp(__sysname, "Darwin") == 0;
 }
 
 void print(char const *fmt, ...)
@@ -113,14 +113,13 @@ void HandleArguments(int argc, char *argv[])
 	}
 	else if (strcmp(argv[1], "--steam") == 0)
 	{
+		assert(OSInfo.IsWine == TRUE);
+
 		/* All this mess just so when you close the game,
 			it automatically closes the bridge and Steam
 			will not say that the game is still running. */
 
 		print("Running as Steam\n");
-		if (IsLinux == FALSE)
-			CreateBridge();
-
 		if (argc > 2)
 		{
 			if (strcmp(argv[2], "--no-service") == 0)
@@ -312,7 +311,14 @@ void HandleArguments(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	DetectWine();
-	char *logFilePath = "C:\\windows\\logs\\bridge.log";
+	if (OSInfo.IsWine)
+		logFilePath = "C:\\windows\\logs\\bridge.log";
+	else
+	{
+		logFilePath = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH);
+		GetTempPath(MAX_PATH, logFilePath);
+		strcat_s(logFilePath, MAX_PATH, "bridge.log");
+	}
 	g_logFile = fopen(logFilePath, "w");
 	if (g_logFile == NULL)
 	{

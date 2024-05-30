@@ -12,6 +12,7 @@ build: $(C_OBJECTS)
 	$(info Linking)
 	x86_64-w64-mingw32-windres bridge.rc -O coff -o bridge.res
 	x86_64-w64-mingw32-gcc $(C_OBJECTS) bridge.res $(LFLAGS) $(DBGFLAGS) -o build/bridge.exe
+	gcc kvm.c -o build/rpc-bridge.elf
 
 %.o: %.c
 	$(info Compiling $<)

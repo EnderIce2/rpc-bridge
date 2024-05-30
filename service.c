@@ -8,7 +8,6 @@ SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
 void print(char const *fmt, ...);
 void CreateBridge();
 LPTSTR GetErrorMessage();
-extern BOOL IsLinux;
 
 void WINAPI ServiceCtrlHandler(DWORD CtrlCode)
 {
@@ -87,14 +86,6 @@ void ServiceMain(DWORD argc, LPTSTR *argv)
 void InstallService(int ServiceStartType, LPCSTR Path)
 {
 	print("Registering service\n");
-
-	// if (IsLinux == FALSE)
-	// {
-	// 	/* FIXME: I don't know how to get the TMPDIR without getenv */
-	// 	MessageBox(NULL, "Registering as a service is not supported on macOS at the moment.",
-	// 			   "Unsupported", MB_OK | MB_ICONINFORMATION);
-	// 	ExitProcess(1);
-	// }
 
 	SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
 	if (schSCManager == NULL)

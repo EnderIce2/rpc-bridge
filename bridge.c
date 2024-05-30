@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "bridge.h"
+
 #define __linux_read 3
 #define __linux_write 4
 #define __linux_open 5
@@ -64,7 +66,7 @@ void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
 BOOL RetryNewConnection;
-BOOL IsLinux;
+OS_INFO OSInfo = {0};
 HANDLE hOut = NULL;
 HANDLE hIn = NULL;
 
@@ -102,7 +104,7 @@ static naked int darwin_syscall(int num,
 
 static inline int sys_read(int fd, void *buf, size_t count)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_read, fd, buf, count, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_read, fd, buf, count, 0, 0, 0);
@@ -110,7 +112,7 @@ static inline int sys_read(int fd, void *buf, size_t count)
 
 static inline int sys_write(int fd, const void *buf, size_t count)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_write, fd, buf, count, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_write, fd, buf, count, 0, 0, 0);
@@ -118,7 +120,7 @@ static inline int sys_write(int fd, const void *buf, size_t count)
 
 static inline int sys_open(const char *pathname, int flags, int mode)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_open, pathname, flags, mode, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_open, pathname, flags, mode, 0, 0, 0);
@@ -126,7 +128,7 @@ static inline int sys_open(const char *pathname, int flags, int mode)
 
 static inline int sys_close(int fd)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_close, fd, 0, 0, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_close, fd, 0, 0, 0, 0, 0);
@@ -134,25 +136,25 @@ static inline int sys_close(int fd)
 
 static inline unsigned int *sys_mmap(unsigned int *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {
-	assert(IsLinux);
+	assert(OSInfo.IsLinux);
 	return linux_syscall(__linux_mmap2, addr, length, prot, flags, fd, offset);
 }
 
 static inline int sys_munmap(unsigned int *addr, size_t length)
 {
-	assert(IsLinux);
+	assert(OSInfo.IsLinux);
 	return linux_syscall(__linux_munmap, addr, length, 0, 0, 0, 0);
 }
 
 static inline int sys_socketcall(int call, unsigned long *args)
 {
-	assert(IsLinux);
+	assert(OSInfo.IsLinux);
 	return linux_syscall(__linux_socketcall, call, args, 0, 0, 0, 0);
 }
 
 static inline int sys_socket(int domain, int type, int protocol)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_socket, domain, type, protocol, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_socket, domain, type, protocol, 0, 0, 0);
@@ -160,7 +162,7 @@ static inline int sys_socket(int domain, int type, int protocol)
 
 static inline int sys_connect(int s, caddr_t name, socklen_t namelen)
 {
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		return linux_syscall(__linux_connect, s, name, namelen, 0, 0, 0);
 	else
 		return darwin_syscall(__darwin_connect, s, name, namelen, 0, 0, 0);
@@ -174,7 +176,7 @@ char *native_getenv(const char *name)
 	if (ret != 0)
 		return lpBuffer;
 
-	if (!IsLinux)
+	if (!OSInfo.IsLinux)
 	{
 		char *value = getenv(name);
 		if (value == NULL)
@@ -251,9 +253,9 @@ void ConnectToSocket(int fd)
 {
 	print("Connecting to socket\n");
 	const char *runtime;
-	if (IsLinux)
+	if (OSInfo.IsLinux)
 		runtime = native_getenv("XDG_RUNTIME_DIR");
-	else
+	else if (OSInfo.IsDarwin)
 	{
 		runtime = native_getenv("TMPDIR");
 		if (runtime == NULL)
@@ -277,6 +279,11 @@ void ConnectToSocket(int fd)
 				ExitProcess(1);
 			}
 		}
+	}
+	else
+	{
+		print("Unsupported OS\n");
+		ExitProcess(1);
 	}
 
 	print("IPC directory: %s\n", runtime);
@@ -302,7 +309,7 @@ void ConnectToSocket(int fd)
 
 		print("Connecting to %s\n", pipePath);
 
-		if (IsLinux)
+		if (OSInfo.IsLinux)
 		{
 			unsigned long socketArgs[] = {
 				(unsigned long)fd,
@@ -480,6 +487,162 @@ void PipeBufferOutThread(LPVOID lpParam)
 	}
 }
 
+void COMPipeBufferInThread(LPVOID lpParam)
+{
+	bridge_thread *bt = (bridge_thread *)lpParam;
+	print("COM In thread started using COM port and pipe %#x\n", bt->hPipe);
+
+	HANDLE hComPort = CreateFile("\\\\.\\COM2", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if (hComPort == INVALID_HANDLE_VALUE)
+	{
+		print("Failed to open COM2 port: %s\n", GetErrorMessage());
+		return;
+	}
+
+	int EOFCount = 0;
+	while (TRUE)
+	{
+		char buffer[BUFFER_LENGTH];
+		DWORD bytesRead;
+
+		if (!ReadFile(hComPort, buffer, sizeof(buffer), &bytesRead, NULL))
+		{
+			print("Failed to read from COM2 port: %s\n", GetErrorMessage());
+			Sleep(1000);
+			continue;
+		}
+
+		if (EOFCount > 4)
+		{
+			print("EOF count exceeded\n");
+			RetryNewConnection = TRUE;
+			TerminateThread(hOut, 0);
+			break;
+		}
+
+		if (bytesRead == 0)
+		{
+			print("EOF\n");
+			Sleep(1000);
+			EOFCount++;
+			continue;
+		}
+		EOFCount = 0;
+
+		print("Reading %d bytes from COM2 port: \"", bytesRead);
+		for (DWORD i = 0; i < bytesRead; i++)
+			print("%c", buffer[i]);
+		print("\"\n");
+
+		DWORD dwWritten;
+		if (!WriteFile(bt->hPipe, buffer, bytesRead, &dwWritten, NULL))
+		{
+			if (GetLastError() == ERROR_BROKEN_PIPE)
+			{
+				RetryNewConnection = TRUE;
+				print("In Broken pipe\n");
+				break;
+			}
+
+			print("Failed to write to pipe: %s\n", GetErrorMessage());
+			Sleep(1000);
+			continue;
+		}
+
+		while (dwWritten < bytesRead)
+		{
+			int last_written = dwWritten;
+			if (!WriteFile(bt->hPipe, buffer + dwWritten, bytesRead - dwWritten, &dwWritten, NULL))
+			{
+				if (GetLastError() == ERROR_BROKEN_PIPE)
+				{
+					RetryNewConnection = TRUE;
+					print("In Broken pipe\n");
+					break;
+				}
+
+				print("Failed to write to pipe: %s\n", GetErrorMessage());
+				Sleep(1000);
+				continue;
+			}
+
+			if (last_written == dwWritten)
+			{
+				print("Failed to write to pipe: %s\n", GetErrorMessage());
+				Sleep(1000);
+				continue;
+			}
+		}
+	}
+
+	CloseHandle(hComPort);
+}
+
+void COMPipeBufferOutThread(LPVOID lpParam)
+{
+	bridge_thread *bt = (bridge_thread *)lpParam;
+	print("COM Out thread started using COM port and pipe %#x\n", bt->hPipe);
+
+	HANDLE hComPort = CreateFile("\\\\.\\COM2", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+	if (hComPort == INVALID_HANDLE_VALUE)
+	{
+		print("Failed to open COM2 port: %s\n", GetErrorMessage());
+		return;
+	}
+
+	while (TRUE)
+	{
+		char buffer[BUFFER_LENGTH];
+		DWORD dwRead;
+
+		if (!ReadFile(bt->hPipe, buffer, sizeof(buffer), &dwRead, NULL))
+		{
+			if (GetLastError() == ERROR_BROKEN_PIPE)
+			{
+				RetryNewConnection = TRUE;
+				print("Out Broken pipe\n");
+				break;
+			}
+
+			print("Failed to read from pipe: %s\n", GetErrorMessage());
+			Sleep(1000);
+			continue;
+		}
+
+		print("Writing %d bytes to COM2 port: \"", dwRead);
+		for (DWORD i = 0; i < dwRead; i++)
+			print("%c", buffer[i]);
+		print("\"\n");
+
+		DWORD bytesWritten;
+		if (!WriteFile(hComPort, buffer, dwRead, &bytesWritten, NULL))
+		{
+			print("Failed to write to COM2 port: %s\n", GetErrorMessage());
+			continue;
+		}
+
+		while (bytesWritten < dwRead)
+		{
+			int last_written = bytesWritten;
+			if (!WriteFile(hComPort, buffer + bytesWritten, dwRead - bytesWritten, &bytesWritten, NULL))
+			{
+				print("Failed to write to COM2 port: %s\n", GetErrorMessage());
+				Sleep(1000);
+				continue;
+			}
+
+			if (last_written == bytesWritten)
+			{
+				print("Failed to write to COM2 port: %s\n", GetErrorMessage());
+				Sleep(1000);
+				continue;
+			}
+		}
+	}
+
+	CloseHandle(hComPort);
+}
+
 void CreateBridge()
 {
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
@@ -533,43 +696,87 @@ NewConnection:
 	print("Pipe connected\n");
 
 	int fd;
-	if (IsLinux)
+	if (!OSInfo.IsWine)
 	{
-		unsigned long socketArgs[] = {
-			(unsigned long)AF_UNIX,
-			(unsigned long)SOCK_STREAM,
-			0};
-		fd = sys_socketcall(SYS_SOCKET, socketArgs);
+		print("Running on Windows\n");
+		/* KVM, send 0xBB1569 and wait with timeout (TODO) for response 0xB41D6E */
+
+		print("Trying \\\\.\\COM2\n");
+		HANDLE hComPort = CreateFile("\\\\.\\COM2", GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+		assert(hComPort != INVALID_HANDLE_VALUE);
+		DWORD dwWritten;
+		print("Writing to COM port\n");
+		char buffer[4] = "\x69\x15\xBB";
+		assert(WriteFile(hComPort, buffer, sizeof(buffer), &dwWritten, NULL));
+		print("Wrote %d bytes to COM port\n", dwWritten);
+		DWORD dwRead;
+		print("Reading from COM port\n");
+		assert(ReadFile(hComPort, buffer, sizeof(buffer), &dwRead, NULL));
+		print("Read %d bytes from COM port\n", dwRead);
+
+		if (dwRead != 4 || memcmp(buffer, "\x6E\x1D\xB4", 4) != 0)
+		{
+			CloseHandle(hComPort);
+			print("Failed to connect to COM2\n");
+			return;
+		}
+
+		CloseHandle(hComPort);
+		print("Connected to COM2\n");
+
+		bridge_thread bt = {0, hPipe};
+
+		hIn = CreateThread(NULL, 0,
+						   (LPTHREAD_START_ROUTINE)COMPipeBufferInThread,
+						   (LPVOID)&bt,
+						   0, NULL);
+
+		hOut = CreateThread(NULL, 0,
+							(LPTHREAD_START_ROUTINE)COMPipeBufferOutThread,
+							(LPVOID)&bt,
+							0, NULL);
 	}
 	else
-		fd = sys_socket(AF_UNIX, SOCK_STREAM, 0);
-
-	print("Socket %d created\n", fd);
-
-	if (fd < 0)
 	{
-		print("Failed to create socket: %d\n", fd);
-		if (!RunningAsService)
-			MessageBox(NULL, "Failed to create socket",
-					   NULL, MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		if (OSInfo.IsLinux)
+		{
+			unsigned long socketArgs[] = {
+				(unsigned long)AF_UNIX,
+				(unsigned long)SOCK_STREAM,
+				0};
+			fd = sys_socketcall(SYS_SOCKET, socketArgs);
+		}
+		else
+			fd = sys_socket(AF_UNIX, SOCK_STREAM, 0);
+
+		print("Socket %d created\n", fd);
+
+		if (fd < 0)
+		{
+			print("Failed to create socket: %d\n", fd);
+			if (!RunningAsService)
+				MessageBox(NULL, "Failed to create socket",
+						   NULL, MB_OK | MB_ICONSTOP);
+			ExitProcess(1);
+		}
+
+		ConnectToSocket(fd);
+		print("Connected to Discord\n");
+
+		bridge_thread bt = {fd, hPipe};
+
+		hIn = CreateThread(NULL, 0,
+						   (LPTHREAD_START_ROUTINE)PipeBufferInThread,
+						   (LPVOID)&bt,
+						   0, NULL);
+
+		hOut = CreateThread(NULL, 0,
+							(LPTHREAD_START_ROUTINE)PipeBufferOutThread,
+							(LPVOID)&bt,
+							0, NULL);
 	}
 
-	ConnectToSocket(fd);
-	print("Connected to Discord\n");
-
-	bridge_thread bt = {fd, hPipe};
-
-	hIn = CreateThread(NULL, 0,
-					   (LPTHREAD_START_ROUTINE)PipeBufferInThread,
-					   (LPVOID)&bt,
-					   0, NULL);
 	print("Created in thread %#lx\n", hIn);
-
-	hOut = CreateThread(NULL, 0,
-						(LPTHREAD_START_ROUTINE)PipeBufferOutThread,
-						(LPVOID)&bt,
-						0, NULL);
 	print("Created out thread %#lx\n", hOut);
 
 	if (hIn == NULL || hOut == NULL)
@@ -600,7 +807,8 @@ NewConnection:
 			print("Failed to terminate thread: %s\n",
 				  GetErrorMessage());
 
-		sys_close(fd);
+		if (OSInfo.IsWine)
+			sys_close(fd);
 		CloseHandle(hOut);
 		CloseHandle(hIn);
 		CloseHandle(hPipe);
