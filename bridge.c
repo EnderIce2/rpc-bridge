@@ -282,41 +282,53 @@ void ConnectToSocket(int fd)
 	print("IPC directory: %s\n", runtime);
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
-	const char *discordUnixPipes[] = {
-		"/discord-ipc-0",
-		"/snap.discord/discord-ipc-0",
-		"/app/com.discordapp.Discord/discord-ipc-0",
+	const char *discordUnixSockets[] = {
+		"%s/discord-ipc-%d",
+		"%s/app/com.discordapp.Discord/discord-ipc-%d",
+		"%s/.flatpak/dev.vencord.Vesktop/xdg-run/discord-ipc-%d",
+		"%s/snap.discord/discord-ipc-%d",
+		"%s/snap.discord-canary/discord-ipc-%d",
 	};
 
 	struct sockaddr_un socketAddr;
 	socketAddr.sun_family = AF_UNIX;
-	char *pipePath = NULL;
-	int sockRet = -1;
 
-	for (int i = 0; i < sizeof(discordUnixPipes) / sizeof(discordUnixPipes[0]); i++)
+	int sockRet = 0;
+	for (int i = 0; i < sizeof(discordUnixSockets) / sizeof(discordUnixSockets[0]); i++)
 	{
-		pipePath = malloc(strlen(runtime) + strlen(discordUnixPipes[i]) + 1);
-		strcpy(pipePath, runtime);
-		strcat(pipePath, discordUnixPipes[i]);
-		strcpy_s(socketAddr.sun_path, sizeof(socketAddr.sun_path), pipePath);
+		size_t pipePathLen = strlen(runtime) + strlen(discordUnixSockets[i]) + 1;
+		char *pipePath = malloc(pipePathLen);
 
-		print("Connecting to %s\n", pipePath);
-
-		if (IsLinux)
+		for (int j = 0; j < 16; j++)
 		{
-			unsigned long socketArgs[] = {
-				(unsigned long)fd,
-				(unsigned long)(intptr_t)&socketAddr,
-				sizeof(socketAddr)};
+			snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
+			strcpy_s(socketAddr.sun_path, sizeof(socketAddr.sun_path), pipePath);
+			print("Probing %s\n", pipePath);
 
-			sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
+			if (IsLinux)
+			{
+				unsigned long socketArgs[] = {
+					(unsigned long)fd,
+					(unsigned long)(intptr_t)&socketAddr,
+					sizeof(socketAddr)};
+
+				sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
+			}
+			else
+				sockRet = sys_connect(fd, (caddr_t)&socketAddr, sizeof(socketAddr));
+
+			print("    error: %d\n", sockRet);
+			if (sockRet >= 0)
+				break;
 		}
-		else
-			sockRet = sys_connect(fd, (caddr_t)&socketAddr, sizeof(socketAddr));
 
-		free(pipePath);
 		if (sockRet >= 0)
+		{
+			print("Connecting to %s\n", pipePath);
+			free(pipePath);
 			break;
+		}
+		free(pipePath);
 	}
 
 	if (sockRet < 0)

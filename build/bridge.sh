@@ -21,10 +21,10 @@ TEMP_PATH="$XDG_RUNTIME_DIR"
 TEMP_PATH=${TEMP_PATH:-"$TMPDIR"}
 
 VESSEL_PATH="$BRIDGE_PATH"
-IPC_PATHS="$TEMP_PATH /run/user/$UID $TEMP_PATH/snap.discord $TEMP_PATH/app/com.discordapp.Discord"
+IPC_PATHS="$TEMP_PATH /run/user/$UID $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
 for discord_ipc in $IPC_PATHS; do
-	if [ -S "$discord_ipc"/discord-ipc-0 ]; then
-		VESSEL_PATH="$BRIDGE_PATH:$(echo "$discord_ipc"/discord-ipc-0)"
+	if [ -S "$discord_ipc"/discord-ipc-? ]; then
+		VESSEL_PATH="$BRIDGE_PATH:$(echo "$discord_ipc"/discord-ipc-?)"
 		break
 	fi
 done
