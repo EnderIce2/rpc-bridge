@@ -3,7 +3,7 @@
 <assemblyIdentity
 	version="1.0.0.0"
 	processorArchitecture="amd64"
-	name="EnderIce2.rpc-bridge"
+	name="com.enderice2.rpc-bridge"
 	type="win32"
 />
 <description>Simple bridge that allows you to use Discord Rich Presence with Wine games/software.</description>
