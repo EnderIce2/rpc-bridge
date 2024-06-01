@@ -13,13 +13,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: dependencies
       run: sudo apt-get update && sudo apt-get install gcc-mingw-w64 make
     - name: make
       run: make
     - name: artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: bridge
         path: build
