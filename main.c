@@ -273,38 +273,38 @@ void HandleArguments(int argc, char *argv[])
 	}
 	else if (strcmp(argv[1], "--version") == 0)
 	{
-		printf("%s\n", VER_VERSION_STR);
+		/* Already shows the version */
 		ExitProcess(0);
 	}
 	else if (strcmp(argv[1], "--help") == 0)
 	{
-		printf("Usage:\n"
-			   "  %s [args]\n"
-			   "\n"
-			   "Arguments:\n"
-			   "  --help         Show this help\n"
-			   "\n"
-			   "  --version      Show version\n"
-			   "\n"
-			   "  --install      Install service\n"
-			   "        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n"
-			   "\n"
-			   "  --uninstall    Uninstall service\n"
-			   "        This will remove the service and delete C:\\windows\\bridge.exe\n"
-			   "\n"
-			   "  --steam        Reserved for Steam\n"
-			   "        This will start the service and exit (used with bridge.sh)\n"
-			   "\n"
-			   "  --no-service   Do not run as service\n"
-			   "        (only for --steam)\n"
-			   "\n"
-			   "  --service      Reserved for service\n"
-			   "\n"
-			   "  --rpc <dir>    Set RPC_PATH environment variable\n"
-			   "        This is used to specify the directory where 'discord-ipc-0' is located\n"
-			   "\n"
-			   "Note: If no arguments are provided, the GUI will be shown instead\n",
-			   argv[0]);
+		print("Usage:\n"
+			  "  %s [args]\n"
+			  "\n"
+			  "Arguments:\n"
+			  "  --help         Show this help\n"
+			  "\n"
+			  "  --version      Show version\n"
+			  "\n"
+			  "  --install      Install service\n"
+			  "        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n"
+			  "\n"
+			  "  --uninstall    Uninstall service\n"
+			  "        This will remove the service and delete C:\\windows\\bridge.exe\n"
+			  "\n"
+			  "  --steam        Reserved for Steam\n"
+			  "        This will start the service and exit (used with bridge.sh)\n"
+			  "\n"
+			  "  --no-service   Do not run as service\n"
+			  "        (only for --steam)\n"
+			  "\n"
+			  "  --service      Reserved for service\n"
+			  "\n"
+			  "  --rpc <dir>    Set RPC_PATH environment variable\n"
+			  "        This is used to specify the directory where 'discord-ipc-0' is located\n"
+			  "\n"
+			  "Note: If no arguments are provided, the GUI will be shown instead\n",
+			  argv[0]);
 		ExitProcess(0);
 	}
 }
@@ -316,11 +316,12 @@ int main(int argc, char *argv[])
 	g_logFile = fopen(logFilePath, "w");
 	if (g_logFile == NULL)
 	{
-		printf("Failed to open logs file: %ld\n",
-			   GetLastError());
+		MessageBox(NULL, "Failed to open logs file", "Error", MB_OK | MB_ICONERROR);
+		printf("Failed to open logs file: %ld\n", GetLastError());
 		ExitProcess(1);
 	}
 
+	print("rpc-bridge v%s %s-%s\n", VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT);
 	if (argc > 1)
 		HandleArguments(argc, argv);
 	else

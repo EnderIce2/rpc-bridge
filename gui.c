@@ -191,11 +191,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		case IDM_HELP_ABOUT:
 		{
 			char msg[256];
-			sprintf(msg, "rpc-bridge v%s\n\n"
-						 "Simple bridge that allows you to use Discord Rich Presence with Wine games/software.\n\n"
-						 "Created by EnderIce2\n\n"
-						 "Licensed under the MIT License",
-					VER_VERSION_STR);
+			snprintf(msg, sizeof(msg),
+					 "rpc-bridge v%s\n"
+					 "  branch: %s\n"
+					 "  commit: %s\n\n"
+					 "Simple bridge that allows you to use Discord Rich Presence with Wine games/software.\n\n"
+					 "Created by EnderIce2\n\n"
+					 "Licensed under the MIT License",
+					 VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT);
 			MessageBox(NULL, msg, "About", MB_OK);
 			break;
 		}

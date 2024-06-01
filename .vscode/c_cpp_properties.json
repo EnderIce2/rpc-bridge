@@ -5,7 +5,10 @@
             "includePath": [
                 "${workspaceFolder}/**"
             ],
-            "defines": [],
+            "defines": [
+                "GIT_COMMIT",
+                "GIT_BRANCH"
+            ],
             "cStandard": "c17",
             "cppStandard": "gnu++17",
             "intelliSenseMode": "windows-gcc-x64"
