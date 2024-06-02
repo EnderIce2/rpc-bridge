@@ -20,6 +20,13 @@ For v1.0, see [the original README](https://github.com/EnderIce2/rpc-bridge/blob
 
 ---
 
+## Known Issues
+
+- If you use **Vesktop**
+  Some games may not show up in Discord. This is because Vesktop uses arRPC, which it doesn't work with some games [#4](https://github.com/EnderIce2/rpc-bridge/issues/4#issuecomment-2143549407). This is not an issue with the bridge.
+
+---
+
 ## Examples
 
 **League Of Legends** running under Wine using Lutris
