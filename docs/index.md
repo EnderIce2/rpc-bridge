@@ -22,9 +22,23 @@ For v1.0, see [the original README](https://github.com/EnderIce2/rpc-bridge/blob
 
 ## Examples
 
-![lol](assets/lutris_lol.png "League Of Legends running under Wine using Lutris"){ width="600" }
+**League Of Legends** running under Wine using Lutris
+![image](assets/lutris_lol.png){ width="600" }
 
-![among us](assets/steam_amongus.png "Among Us on Steam"){ width="600" }
+**Among Us** on Steam
+![image](assets/steam_amongus.png){ width="600" }
+
+**Content Warning** on Steam
+![image](assets/contentwarning.png){ width="600" }
+
+**Hades** on Steam
+![image](assets/hades.png){ width="600" }
+
+**Lethal Company** ([modded](https://thunderstore.io/c/lethal-company/p/mrov/LethalRichPresence/)) on Steam
+![image](assets/lethalcompany.png){ width="600" }
+
+**vivid/stasis** on Steam
+![image](assets/vividstasis.png){ width="600" }
 
 ## Credits
 
