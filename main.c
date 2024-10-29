@@ -221,28 +221,26 @@ void HandleArguments(int argc, char *argv[])
 			HeapFree(GetProcessHeap(), 0, asciiPath);
 		}
 
-		print("(Steam) Starting service...\n");
-		if (StartService(schService, 0, NULL) == FALSE)
-		{
-			if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
-			{
-				print("(Steam) Service is already running\n");
-				CloseServiceHandle(schService);
-				CloseServiceHandle(hSCManager);
-				ExitProcess(0);
-			}
+		print("(Steam) Starting service and then exiting...\n");
+		fclose(g_logFile);
 
-			print("StartService: %s\n", GetErrorMessage());
-			MessageBox(NULL, GetErrorMessage(),
-					   "StartService",
-					   MB_OK | MB_ICONSTOP);
-			ExitProcess(1);
+		if (StartService(schService, 0, NULL) != FALSE)
+		{
+			CloseServiceHandle(schService);
+			CloseServiceHandle(hSCManager);
+			ExitProcess(0);
+		}
+		else if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+		{
+			CloseServiceHandle(schService);
+			CloseServiceHandle(hSCManager);
+			ExitProcess(0);
 		}
 
-		print("(Steam) Service started successfully, exiting...\n");
-		CloseServiceHandle(schService);
-		CloseServiceHandle(hSCManager);
-		ExitProcess(0);
+		MessageBox(NULL, GetErrorMessage(),
+				   "StartService",
+				   MB_OK | MB_ICONSTOP);
+		ExitProcess(1);
 	}
 	else if (strcmp(argv[1], "--install") == 0)
 	{
