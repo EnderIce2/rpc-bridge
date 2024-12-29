@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: dependencies
-      run: sudo apt-get update && sudo apt-get install gcc-mingw-w64 make
+      run: sudo apt update && sudo apt -y install gcc-mingw-w64 make
     - name: make
       run: make
     - name: artifact
