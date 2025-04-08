@@ -1,29 +1,21 @@
-name: Build and Deploy docs
+name: Deploy Documentation
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ master ]
+    paths:
+      - docs/**
+      - mkdocs.yml
   pull_request:
     branches: [ "master" ]
+    paths:
+      - docs/**
+      - mkdocs.yml
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: dependencies
-      run: sudo apt update && sudo apt -y install gcc-mingw-w64 make
-    - name: make
-      run: make
-    - name: artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: bridge
-        path: build
-
   deploy:
     runs-on: ubuntu-latest
     steps:
