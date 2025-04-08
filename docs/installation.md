@@ -84,17 +84,17 @@ In Lutris, you can achieve this by adding the path to `bridge.exe` in the `Execu
 
 === "Without bridge"
 
-        - Executable
-            - `/mnt/games/lutris/league-of-legends/drive_c/Riot Games/League of Legends/LeagueClient.exe`
-        - Arguments
-            - `--locale=en_US --launch-product=league_of_legends --launch-patchline=live`
+    - Executable
+        - `/mnt/games/lutris/league-of-legends/drive_c/Riot Games/League of Legends/LeagueClient.exe`
+    - Arguments
+        - `--locale=en_US --launch-product=league_of_legends --launch-patchline=live`
 
 === "With bridge"
 
-        - Executable
-            - `/mnt/games/lutris/league-of-legends/drive_c/bridge.exe`
-        - Arguments
-            - `"C:\Riot Games\League of Legends\LeagueClient.exe" --locale=en_US --launch-product=league_of_legends --launch-patchline=live`
+    - Executable
+        - `/mnt/games/lutris/league-of-legends/drive_c/bridge.exe`
+    - Arguments
+        - `"C:\Riot Games\League of Legends\LeagueClient.exe" --locale=en_US --launch-product=league_of_legends --launch-patchline=live`
 
 In Wine, all you need to do is run `bridge.exe` and select `Start`.
 
