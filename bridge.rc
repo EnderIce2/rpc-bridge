@@ -19,7 +19,7 @@ BEGIN
 			VALUE "FileDescription",  "Simple bridge that allows you to use Discord Rich Presence with Wine games/software."
 			VALUE "FileVersion",      VER_VERSION_STR
 			VALUE "InternalName",     "bridge"
-			VALUE "LegalCopyright",   "Copyright (c) 2024 EnderIce2"
+			VALUE "LegalCopyright",   "Copyright (c) 2025 EnderIce2"
 			VALUE "OriginalFilename", "bridge.exe"
 			VALUE "ProductName",      "rpc-bridge"
 			VALUE "ProductVersion",   VER_VERSION_STR
