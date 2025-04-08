@@ -3,8 +3,18 @@ name: Build Project
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - 'ISSUE_TEMPLATE/**'
+      - 'workflows/**'
+      - '.vsocde/**'
+      - 'docs/**'
   pull_request:
     branches: [ "master" ]
+    paths-ignore:
+      - 'ISSUE_TEMPLATE/**'
+      - 'workflows/**'
+      - '.vsocde/**'
+      - 'docs/**'
 
 permissions:
   contents: write
