@@ -5,5 +5,5 @@
 #define IDM_HELP_ABOUT 40003
 #define IDM_VIEW_LOG 40004
 
-#define VER_VERSION 1, 3, 0, 0
-#define VER_VERSION_STR "1.3\0"
+#define VER_VERSION 1, 4, 0, 0
+#define VER_VERSION_STR "1.4.0.0\0"
