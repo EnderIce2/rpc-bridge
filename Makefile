@@ -5,7 +5,7 @@ GIT_COMMIT = $(shell git rev-parse --short HEAD)
 GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 
 CFLAGS = -std=c17 -Wno-int-conversion -DGIT_COMMIT='"$(GIT_COMMIT)"' -DGIT_BRANCH='"$(GIT_BRANCH)"'
-LFLAGS = -lgdi32
+LFLAGS = -lgdi32 -lws2_32
 
 # DBGFLAGS = -Wl,--export-all-symbols -g -O0 -ggdb3 -Wall
 

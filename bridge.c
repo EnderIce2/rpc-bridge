@@ -195,11 +195,7 @@ char *native_getenv(const char *name)
 
 	/* I hope the 0x20000 is okay */
 	if (environStr == NULL)
-	{
-		environStr = sys_mmap(0x20000, 4096, PROT_READ | PROT_WRITE,
-							  MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-		print("Allocated 4096 bytes at %#lx\n", environStr);
-	}
+		environStr = sys_mmap(0x20000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
 
 	if ((uintptr_t)environStr > 0x7effffff)
 		print("Warning: environStr %#lx is above 2GB\n", environStr);
@@ -209,18 +205,17 @@ char *native_getenv(const char *name)
 
 	int fd = sys_open(environStr, O_RDONLY, 0);
 
-	// sys_munmap(environStr, 4096);
 	if (fd < 0)
 	{
 		print("Failed to open /proc/self/environ: %d\n", fd);
 		return NULL;
 	}
 
-	char buffer[4096];
+	char *buffer = sys_mmap(0x22000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
 	char *result = NULL;
 	int bytesRead;
 
-	while ((bytesRead = sys_read(fd, buffer, sizeof(buffer) - 1)) > 0)
+	while ((bytesRead = sys_read(fd, buffer, 0x1000 - 1)) > 0)
 	{
 		buffer[bytesRead] = '\0';
 		char *env = buffer;
@@ -290,8 +285,8 @@ void ConnectToSocket(int fd)
 		"%s/snap.discord-canary/discord-ipc-%d",
 	};
 
-	struct sockaddr_un socketAddr;
-	socketAddr.sun_family = AF_UNIX;
+	struct sockaddr_un *socketAddr = sys_mmap(0x23000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	socketAddr->sun_family = AF_UNIX;
 
 	int sockRet = 0;
 	for (int i = 0; i < sizeof(discordUnixSockets) / sizeof(discordUnixSockets[0]); i++)
@@ -302,15 +297,20 @@ void ConnectToSocket(int fd)
 		for (int j = 0; j < 16; j++)
 		{
 			snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
-			strcpy_s(socketAddr.sun_path, sizeof(socketAddr.sun_path), pipePath);
+			strcpy_s(socketAddr->sun_path, sizeof(socketAddr->sun_path), pipePath);
 			print("Probing %s\n", pipePath);
 
 			if (IsLinux)
 			{
-				unsigned long socketArgs[] = {
-					(unsigned long)fd,
-					(unsigned long)(intptr_t)&socketAddr,
-					sizeof(socketAddr)};
+				// unsigned long socketArgs[] = {
+				// 	(unsigned long)fd,
+				// 	(unsigned long)(intptr_t)&socketAddr,
+				// 	sizeof(socketAddr)};
+				unsigned long *socketArgs = sys_mmap(0x24000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+				socketArgs[0] = (unsigned long)fd;
+				socketArgs[1] = (unsigned long)(intptr_t)socketAddr;
+				socketArgs[2] = sizeof(struct sockaddr_un);
+				socketArgs[3] = 0;
 
 				sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
 			}
@@ -345,18 +345,17 @@ void ConnectToSocket(int fd)
 void PipeBufferInThread(LPVOID lpParam)
 {
 	bridge_thread *bt = (bridge_thread *)lpParam;
-	print("In thread started using fd %d and pipe %#x\n",
-		  bt->fd, bt->hPipe);
+	print("In thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
 	int EOFCount = 0;
+	char *l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
-		int read = sys_read(bt->fd, buffer, sizeof(buffer));
+		int read = sys_read(bt->fd, l_buffer, BUFFER_LENGTH);
 
 		if (unlikely(read < 0))
 		{
-			print("Failed to read from unix pipe: %d\n",
-				  GetErrorMessage());
+			print("Failed to read from unix pipe: %d\n", read);
 			Sleep(1000);
 			continue;
 		}
@@ -378,14 +377,16 @@ void PipeBufferInThread(LPVOID lpParam)
 		}
 		EOFCount = 0;
 
+		memcpy(buffer, l_buffer, read);
+
 		print("Reading %d bytes from unix pipe: \"", read);
 		for (int i = 0; i < read; i++)
 			print("%c", buffer[i]);
 		print("\"\n");
 
 		DWORD dwWritten;
-		if (unlikely(!WriteFile(bt->hPipe, buffer, read,
-								&dwWritten, NULL)))
+		WINBOOL bResult = WriteFile(bt->hPipe, buffer, read, &dwWritten, NULL);
+		if (unlikely(bResult == FALSE))
 		{
 			if (GetLastError() == ERROR_BROKEN_PIPE)
 			{
@@ -394,16 +395,14 @@ void PipeBufferInThread(LPVOID lpParam)
 				break;
 			}
 
-			print("Failed to read from pipe: %d\n",
-				  GetErrorMessage());
+			print("Failed to read from pipe: %s\n", GetErrorMessage());
 			Sleep(1000);
 			continue;
 		}
 
 		if (unlikely(dwWritten < 0))
 		{
-			print("Failed to write to pipe: %d\n",
-				  GetErrorMessage());
+			print("Failed to write to pipe: %s\n", GetErrorMessage());
 			Sleep(1000);
 			continue;
 		}
@@ -411,8 +410,8 @@ void PipeBufferInThread(LPVOID lpParam)
 		while (dwWritten < read)
 		{
 			int last_written = dwWritten;
-			if (unlikely(!WriteFile(bt->hPipe, buffer + dwWritten,
-									read - dwWritten, &dwWritten, NULL)))
+			WINBOOL bResult = WriteFile(bt->hPipe, buffer + dwWritten, read - dwWritten, &dwWritten, NULL);
+			if (unlikely(bResult == FALSE))
 			{
 				if (GetLastError() == ERROR_BROKEN_PIPE)
 				{
@@ -421,16 +420,14 @@ void PipeBufferInThread(LPVOID lpParam)
 					break;
 				}
 
-				print("Failed to read from pipe: %d\n",
-					  GetErrorMessage());
+				print("Failed to read from pipe: %s\n", GetErrorMessage());
 				Sleep(1000);
 				continue;
 			}
 
 			if (unlikely(last_written == dwWritten))
 			{
-				print("Failed to write to pipe: %d\n",
-					  GetErrorMessage());
+				print("Failed to write to pipe: %s\n", GetErrorMessage());
 				Sleep(1000);
 				continue;
 			}
@@ -441,15 +438,14 @@ void PipeBufferInThread(LPVOID lpParam)
 void PipeBufferOutThread(LPVOID lpParam)
 {
 	bridge_thread *bt = (bridge_thread *)lpParam;
-	print("Out thread started using fd %d and pipe %#x\n",
-		  bt->fd, bt->hPipe);
+	print("Out thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
+	char *l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
 		DWORD dwRead;
-
-		if (unlikely(!ReadFile(bt->hPipe, buffer, sizeof(buffer),
-							   &dwRead, NULL)))
+		WINBOOL bResult = ReadFile(bt->hPipe, buffer, BUFFER_LENGTH, &dwRead, NULL);
+		if (unlikely(bResult == FALSE))
 		{
 			if (GetLastError() == ERROR_BROKEN_PIPE)
 			{
@@ -458,8 +454,7 @@ void PipeBufferOutThread(LPVOID lpParam)
 				break;
 			}
 
-			print("Failed to read from pipe: %d\n",
-				  GetErrorMessage());
+			print("Failed to read from pipe: %s\n", GetErrorMessage());
 			Sleep(1000);
 			continue;
 		}
@@ -469,11 +464,11 @@ void PipeBufferOutThread(LPVOID lpParam)
 			print("%c", buffer[i]);
 		print("\"\n");
 
-		int written = sys_write(bt->fd, buffer, dwRead);
+		memcpy(l_buffer, buffer, dwRead);
+		int written = sys_write(bt->fd, l_buffer, dwRead);
 		if (unlikely(written < 0))
 		{
-			print("Failed to write to socket: %d\n",
-				  written);
+			print("Failed to write to socket: %d\n", written);
 			continue;
 		}
 
@@ -483,8 +478,7 @@ void PipeBufferOutThread(LPVOID lpParam)
 			written += sys_write(bt->fd, buffer + written, dwRead - written);
 			if (unlikely(last_written == written))
 			{
-				print("Failed to write to socket: %d\n",
-					  GetErrorMessage());
+				print("Failed to write to socket: %s\n", GetErrorMessage());
 				Sleep(1000);
 				continue;
 			}
@@ -547,16 +541,31 @@ NewConnection:
 	int fd;
 	if (IsLinux)
 	{
-		unsigned long socketArgs[] = {
-			(unsigned long)AF_UNIX,
-			(unsigned long)SOCK_STREAM,
-			0};
+		// unsigned long socketArgs[] = {
+		// 	(unsigned long)AF_UNIX,
+		// 	(unsigned long)SOCK_STREAM,
+		// 	0};
+		unsigned long *socketArgs = sys_mmap(0x21000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+		socketArgs[0] = (unsigned long)AF_UNIX;
+		socketArgs[1] = (unsigned long)SOCK_STREAM;
+		socketArgs[2] = 0;
 		fd = sys_socketcall(SYS_SOCKET, socketArgs);
+
+		/* FIXME: WSAEAFNOSUPPORT: https://gitlab.winehq.org/wine/wine/-/merge_requests/2786 */
+		// WSADATA wsaData;
+		// int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+		// if (iResult != 0)
+		// 	printf("WSAStartup failed: %d\n", iResult);
+		// fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	}
 	else
 		fd = sys_socket(AF_UNIX, SOCK_STREAM, 0);
 
-	print("Socket %d created\n", fd);
+	if (fd == INVALID_SOCKET)
+	{
+		print("invalid socket: %d %d\n", fd, WSAGetLastError());
+		ExitProcess(1);
+	}
 
 	if (fd < 0)
 	{
@@ -566,6 +575,8 @@ NewConnection:
 					   NULL, MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
+
+	print("Socket %d created\n", fd);
 
 	ConnectToSocket(fd);
 	print("Connected to Discord\n");
