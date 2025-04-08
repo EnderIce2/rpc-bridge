@@ -21,11 +21,11 @@ Steps to reproduce the behavior:
 If applicable, add screenshots to help explain your problem.
 
 **Log File**
-Located in `/path/to/prefix/drive_c/windows/logs/bridge.log`
+Located in `/path/to/prefix/drive_c/windows/logs/bridge.log` or a screenshot with the terminal should suffice.
 
-**Device (please complete the following information):**
- - OS: [e.g. SteamOS, Ubuntu, macOS]
- - Version [e.g. 22.04]
+**System Info (please complete the following information):**
+ - OS: [e.g. SteamOS 3.0, Ubuntu 22.04, macOS 15, or output from command `uname -srm`]
+ - Wine: [e.g. 10.5]
 
 **Additional context**
 Add any other context about the problem here.
