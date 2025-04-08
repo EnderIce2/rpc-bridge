@@ -59,7 +59,7 @@ void DetectWine()
 	if (!GetProcAddress(hNTdll, "wine_get_version"))
 	{
 		MessageBox(NULL, "This program is only intended to run under Wine.",
-				   GetErrorMessage(), MB_OK | MB_ICONINFORMATION);
+				   "Error", MB_OK | MB_ICONINFORMATION);
 		ExitProcess(1);
 	}
 
