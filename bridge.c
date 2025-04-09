@@ -20,17 +20,21 @@
 #define __darwin_close 0x2000006
 #define __darwin_socket 0x2000061
 #define __darwin_connect 0x2000062
+#define __darwin_mmap 0x20000C5
 #define __darwin_fcntl 0x200005C
 #define __darwin_sysctl 0x20000CA
 
 #define O_RDONLY 00
 
+/* macos & linux are the same for PROT_READ, PROT_WRITE, MAP_FIXED & MAP_PRIVATE */
 #define PROT_READ 1
 #define PROT_WRITE 2
 #define MAP_PRIVATE 0x02
 #define MAP_FIXED 0x10
 #define MAP_ANON 0x20
 #define MAP_FAILED ((void *)-1)
+
+#define __darwin_MAP_ANON 0x1000
 
 #define SYS_SOCKET 1
 #define SYS_CONNECT 3
@@ -134,8 +138,17 @@ static inline int sys_close(int fd)
 
 static inline unsigned int *sys_mmap(unsigned int *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {
-	assert(IsLinux);
-	return linux_syscall(__linux_mmap2, addr, length, prot, flags, fd, offset);
+	if (IsLinux)
+		return linux_syscall(__linux_mmap2, addr, length, prot, flags, fd, offset);
+	else
+	{
+		if (flags & MAP_ANON)
+		{
+			flags &= ~MAP_ANON;
+			flags |= __darwin_MAP_ANON;
+		}
+		return darwin_syscall(__darwin_mmap, addr, length, prot, flags, fd, offset);
+	}
 }
 
 static inline int sys_munmap(unsigned int *addr, size_t length)
@@ -285,9 +298,6 @@ void ConnectToSocket(int fd)
 		"%s/snap.discord-canary/discord-ipc-%d",
 	};
 
-	struct sockaddr_un *socketAddr = sys_mmap(0x23000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-	socketAddr->sun_family = AF_UNIX;
-
 	int sockRet = 0;
 	for (int i = 0; i < sizeof(discordUnixSockets) / sizeof(discordUnixSockets[0]); i++)
 	{
@@ -296,12 +306,16 @@ void ConnectToSocket(int fd)
 
 		for (int j = 0; j < 16; j++)
 		{
-			snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
-			strcpy_s(socketAddr->sun_path, sizeof(socketAddr->sun_path), pipePath);
-			print("Probing %s\n", pipePath);
-
 			if (IsLinux)
 			{
+				struct sockaddr_un *socketAddr = sys_mmap(0x23000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+				print("Socket address allocated at %#lx\n", socketAddr);
+				socketAddr->sun_family = AF_UNIX;
+
+				snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
+				strcpy_s(socketAddr->sun_path, sizeof(socketAddr->sun_path), pipePath);
+				print("Probing %s\n", pipePath);
+
 				// unsigned long socketArgs[] = {
 				// 	(unsigned long)fd,
 				// 	(unsigned long)(intptr_t)&socketAddr,
@@ -315,7 +329,16 @@ void ConnectToSocket(int fd)
 				sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
 			}
 			else
+			{
+				struct sockaddr_un socketAddr;
+				socketAddr.sun_family = AF_UNIX;
+
+				snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
+				strcpy_s(socketAddr.sun_path, sizeof(socketAddr.sun_path), pipePath);
+				print("Probing %s\n", pipePath);
+
 				sockRet = sys_connect(fd, (caddr_t)&socketAddr, sizeof(socketAddr));
+			}
 
 			print("    error: %d\n", sockRet);
 			if (sockRet >= 0)
@@ -347,7 +370,12 @@ void PipeBufferInThread(LPVOID lpParam)
 	bridge_thread *bt = (bridge_thread *)lpParam;
 	print("In thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
 	int EOFCount = 0;
-	char *l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	char *l_buffer;
+	if (IsLinux)
+		l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	else
+		l_buffer = malloc(BUFFER_LENGTH);
+	print("Buffer in thread allocated at %#lx\n", l_buffer);
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
@@ -439,7 +467,12 @@ void PipeBufferOutThread(LPVOID lpParam)
 {
 	bridge_thread *bt = (bridge_thread *)lpParam;
 	print("Out thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
-	char *l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	char *l_buffer;
+	if (IsLinux)
+		l_buffer = sys_mmap(0x26000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	else
+		l_buffer = malloc(BUFFER_LENGTH);
+	print("Buffer out thread allocated at %#lx\n", l_buffer);
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
