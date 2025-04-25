@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 
 # This script is used to run Steam Play with the bridge.
 #  Usage: /path/to/bridge.sh %command%
