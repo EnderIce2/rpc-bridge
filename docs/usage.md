@@ -8,7 +8,7 @@
 - `Install` will install the service.
 - `Remove` will uninstall the service.
 
-## Commands
+## CLI
 
 - `--help` Show help message
     - This will show the help message

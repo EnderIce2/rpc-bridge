@@ -27,6 +27,35 @@ For v1.0, see [the original README](https://github.com/EnderIce2/rpc-bridge/blob
 
 ---
 
+## My game is not showing up in Discord
+
+If your game is not showing up in Discord, please check the following:
+
+- The game you are playing has [Rich Presence](https://discord.com/developers/docs/rich-presence/overview) support!
+    - Some games may not have this feature. It's up to developers of the game to implement it.  
+    This is not an issue related to the bridge.
+
+- You followed the installation steps correctly.
+
+- You are using the latest version of the bridge. Currently is ![GitHub Release](https://img.shields.io/github/v/release/EnderIce2/rpc-bridge?style=flat-square&label=%20).
+
+### I still want to see the game in Discord!
+
+This is outside the scope of this project, but here are some workarounds:
+
+- You can manually add the game to Discord by going to `User Settings >` under `Activity Settings` in `Registered Games` tab. [Official Article](https://support.discord.com/hc/en-us/articles/7931156448919-Activity-Status-Recent-Activity#h_01HTJA8QV5ABSA6FY6GEPMA946)
+    - Tip: You can rename the game to whatever you want.
+
+---
+
+## Compiling from source
+
+- Install the `wine`, `gcc-mingw-w64` and `make` packages.
+- Open a terminal in the directory that contains this file and run `make`.
+- The compiled executable will be located in `build/bridge.exe`.
+
+---
+
 ## Examples
 
 [**League Of Legends**](https://www.leagueoflegends.com/en-us/) running under Wine using Lutris  

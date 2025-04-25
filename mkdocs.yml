@@ -70,7 +70,9 @@ markdown_extensions:
       alternate_style: true
 plugins:
   - offline
+  - mkdocs-video
 nav:
   - Home: index.md
-  - Installation: installation.md
+  - Linux: linux.md
+  - macOS: macos.md
   - Usage: usage.md
