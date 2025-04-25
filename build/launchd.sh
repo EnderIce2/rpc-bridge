@@ -8,6 +8,16 @@ LOCATION=~/Library/Application\ Support/rpc-bridge
 SCRIPT=$LOCATION/rpc-bridge
 AGENT=~/Library/LaunchAgents/com.enderice2.rpc-bridge.plist
 
+function is_installed() {
+    if [ -f "$AGENT" ]; then
+        launchctl list | grep -q "com.enderice2.rpc-bridge"
+        if [ $? -eq 0 ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 function install() {
     # Directories
     if [ ! -d "$SYMLINK" ]; then
@@ -71,9 +81,16 @@ fi
 
 case $1 in
     install)
+        if is_installed; then
+            echo "LaunchAgent is already installed."
+            exit 0
+        fi
         install
     ;;
     remove)
+        if ! is_installed; then
+            echo "LaunchAgent is not installed. Continuing anyway."
+        fi
         remove
     ;;
     *)
