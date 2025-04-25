@@ -15,7 +15,7 @@ The script will add a LaunchAgent to your user, that will symlink the `$TMPDIR` 
 
 ## Video Tutorial on how to install the LaunchAgent + bridge inside CrossOver
 
-![type:video](assets/macos-crossover.mp4){: style='width: 66%; height: 20vw;'}
+![type:video](assets/macos-crossover.webm){: style='width: 66%; height: 20vw;'}
 
 ## Wine (~/.wine)
 

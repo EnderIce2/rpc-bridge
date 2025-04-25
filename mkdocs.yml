@@ -75,7 +75,6 @@ plugins:
       video_controls: true
       video_loop: false
       video_muted: false
-      video_type: mp4
 nav:
   - Home: index.md
   - Linux: linux.md
