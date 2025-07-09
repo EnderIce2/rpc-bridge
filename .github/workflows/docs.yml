@@ -5,10 +5,12 @@ on:
     branches: [ master ]
     paths:
       - docs/**
+      - mkdocs.yml
   pull_request:
     branches: [ "master" ]
     paths:
       - docs/**
+      - mkdocs.yml
 
 permissions:
   contents: write
@@ -35,4 +37,3 @@ jobs:
       - run: pip install mkdocs-material
       - run: pip install mkdocs-video
       - run: mkdocs gh-deploy --force
-        working-directory: ./docs

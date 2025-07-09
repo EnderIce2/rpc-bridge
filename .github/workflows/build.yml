@@ -7,12 +7,14 @@ on:
       - '.github/**'
       - '.vscode/**'
       - 'docs/**'
+      - mkdocs.yml
   pull_request:
     branches: [ "master" ]
     paths-ignore:
       - '.github/**'
       - '.vscode/**'
       - 'docs/**'
+      - mkdocs.yml
 
 permissions:
   contents: write
