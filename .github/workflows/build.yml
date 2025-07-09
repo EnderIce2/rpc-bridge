@@ -4,16 +4,14 @@ on:
   push:
     branches: [ "master" ]
     paths-ignore:
-      - 'ISSUE_TEMPLATE/**'
-      - 'workflows/**'
-      - '.vsocde/**'
+      - '.github/**'
+      - '.vscode/**'
       - 'docs/**'
   pull_request:
     branches: [ "master" ]
     paths-ignore:
-      - 'ISSUE_TEMPLATE/**'
-      - 'workflows/**'
-      - '.vsocde/**'
+      - '.github/**'
+      - '.vscode/**'
       - 'docs/**'
 
 permissions:
