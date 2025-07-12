@@ -72,6 +72,10 @@ More details on how to install the LaunchAgent can be found in the [documentatio
 - Open a terminal in the directory that contains this file and run `make`.
 - The compiled executable will be located in `build/bridge.exe`.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=enderice2/rpc-bridge&type=Date)](https://www.star-history.com/#enderice2/rpc-bridge&Date)
+
 ## Credits
 
 This project is inspired by [wine-discord-ipc-bridge](https://github.com/0e4ef622/wine-discord-ipc-bridge).
