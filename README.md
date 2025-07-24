@@ -1,3 +1,34 @@
+
+<div align="right">
+  <details>
+    <summary >🌐 Language</summary>
+    <div>
+      <div align="center">
+        <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=en">English</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=zh-CN">简体中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=zh-TW">繁體中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=ja">日本語</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=ko">한국어</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=hi">हिन्दी</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=th">ไทย</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=fr">Français</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=de">Deutsch</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=es">Español</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=it">Italiano</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=ru">Русский</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=pt">Português</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=nl">Nederlands</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=pl">Polski</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=ar">العربية</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=fa">فارسی</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=tr">Türkçe</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=vi">Tiếng Việt</a>
+        | <a href="https://openaitx.github.io/view.html?user=EnderIce2&project=rpc-bridge&lang=id">Bahasa Indonesia</a>
+      </div>
+    </div>
+  </details>
+</div>
+
 # Discord RPC Bridge for Wine
 
 ![GitHub License](https://img.shields.io/github/license/EnderIce2/rpc-bridge?style=for-the-badge)
