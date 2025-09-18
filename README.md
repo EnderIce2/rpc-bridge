@@ -44,13 +44,13 @@ Logs are stored in `C:\windows\logs\bridge.log`.
 
 - If you are running Steam, Lutris, etc in a Flatpak, you will need to allow the bridge to access the `/run/user/1000/discord-ipc-0` file.
 	- ##### By using [Flatseal](https://flathub.org/apps/details/com.github.tchx84.Flatseal)
-		- Add `xdg-run/discord-ipc-0` under `Filesystems` category
+		- Add `xdg-run/discord-ipc-0`, `xdg-run/.flatpak/dev.vencord.Vesktop:create` and `xdg-run/.flatpak/com.discordapp.Discord:create` under `Filesystems` category
 			- ![flatseal](docs/assets/flatseal_permission.png)
 	- ##### By using the terminal
 		- Per application
-			- `flatpak override --filesystem=xdg-run/discord-ipc-0 <flatpak app name>`
+			- `flatpak override --filesystem=xdg-run/discord-ipc-0 --filesystem=xdg-run/.flatpak/dev.vencord.Vesktop:create --filesystem=xdg-run/.flatpak/com.discordapp.Discord:create <flatpak app name>`
 		- Globally
-			- `flatpak override --user --filesystem=xdg-run/discord-ipc-0`
+			- `flatpak override --user --filesystem=xdg-run/discord-ipc-0 --filesystem=xdg-run/.flatpak/dev.vencord.Vesktop:create --filesystem=xdg-run/.flatpak/com.discordapp.Discord:create`
 
 ##### MacOS
 

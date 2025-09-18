@@ -52,15 +52,15 @@ This method is recommended because it's easier to manage.
 
     === "Flatseal"
     
-        Add `xdg-run/discord-ipc-0` under `Filesystems` category  
+        Add `xdg-run/discord-ipc-0`, `xdg-run/.flatpak/dev.vencord.Vesktop:create` and `xdg-run/.flatpak/com.discordapp.Discord:create` under `Filesystems` category  
         ![flatseal](assets/flatseal_permission.png)
 
     === "Terminal"
 
         - Per application
-            - `flatpak override --filesystem=xdg-run/discord-ipc-0 <flatpak app name>`
+            - `flatpak override --filesystem=xdg-run/discord-ipc-0 --filesystem=xdg-run/.flatpak/dev.vencord.Vesktop:create --filesystem=xdg-run/.flatpak/com.discordapp.Discord:create <flatpak app name>`
         - Globally
-            - `flatpak override --user --filesystem=xdg-run/discord-ipc-0`
+            - `flatpak override --user --filesystem=xdg-run/discord-ipc-0 --filesystem=xdg-run/.flatpak/dev.vencord.Vesktop:create --filesystem=xdg-run/.flatpak/com.discordapp.Discord:create`
 
 ## Run without installing the service
 

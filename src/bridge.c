@@ -294,6 +294,7 @@ void ConnectToSocket(int fd)
 		"%s/discord-ipc-%d",
 		"%s/app/com.discordapp.Discord/discord-ipc-%d",
 		"%s/.flatpak/dev.vencord.Vesktop/xdg-run/discord-ipc-%d",
+		"%s/.flatpak/com.discordapp.Discord/xdg-run/discord-ipc-%d",
 		"%s/snap.discord/discord-ipc-%d",
 		"%s/snap.discord-canary/discord-ipc-%d",
 	};
