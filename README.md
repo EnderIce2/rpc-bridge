@@ -72,9 +72,19 @@ More details on how to install the LaunchAgent can be found in the [documentatio
 - Open a terminal in the directory that contains this file and run `make`.
 - The compiled executable will be located in `build/bridge.exe`.
 
+## Packaging Status
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/rpc-bridge.svg?columns=3)](https://repology.org/project/rpc-bridge/versions)
+
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=enderice2/rpc-bridge&type=Date)](https://www.star-history.com/#enderice2/rpc-bridge&Date)
+<a href="https://www.star-history.com/#enderice2/rpc-bridge&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=enderice2/rpc-bridge&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=enderice2/rpc-bridge&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=enderice2/rpc-bridge&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## Credits
 
