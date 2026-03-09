@@ -54,7 +54,7 @@ This is outside the scope of this project, but here is how you can do it:
 - Rename the game to whatever you want. (in my case `Cyberpunk 2077`)
 
 - The result will be like this:
-![image](assets/game-activity/correct-name.png){ width="400" }
+    - ![image](assets/game-activity/correct-name.png){ width="400" }
 
 - That's it! 
 
