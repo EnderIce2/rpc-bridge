@@ -39,10 +39,26 @@ If your game is not showing up in Discord, please check the following:
 
 ### I still want to see the game in Discord!
 
-This is outside the scope of this project, but here are some workarounds:
+This is outside the scope of this project, but here is how you can do it:
 
-- You can manually add the game to Discord by going to `User Settings >` under `Activity Settings` in `Registered Games` tab. [Official Article](https://support.discord.com/hc/en-us/articles/7931156448919-Activity-Status-Recent-Activity#h_01HTJA8QV5ABSA6FY6GEPMA946)
-    - Tip: You can rename the game to whatever you want.
+- Go to `User Settings` under `Activity Settings` in `Registered Games` tab.
+
+- Click `Add it!` and select the game. (e.g. `Cyberpunk2077.exe`, `HytaleClient.exe`, etc.)
+    - Note for Linux: This is [not supported](https://github.com/flathub/com.discordapp.Discord/issues/11) if you use Discord from Flatpak.
+
+- If the status shows like below, it means you need to rename the game.
+    - ![image](assets/game-activity/wrong-name.png){ width="400" }
+
+- Go again in `Registered Games` and click on the game you just added.
+
+- Rename the game to whatever you want. (in my case `Cyberpunk 2077`)
+
+- The result will be like this:
+![image](assets/game-activity/correct-name.png){ width="400" }
+
+- That's it! 
+
+[Official Article](https://support.discord.com/hc/en-us/articles/7931156448919-Activity-Status-Recent-Activity#h_01HTJA8QV5ABSA6FY6GEPMA946)
 
 ---
 
