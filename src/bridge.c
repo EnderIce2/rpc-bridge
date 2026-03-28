@@ -4,35 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define __linux_read 3
-#define __linux_write 4
-#define __linux_open 5
-#define __linux_close 6
-#define __linux_munmap 91
-#define __linux_socketcall 102
-#define __linux_mmap2 192
-#define __linux_socket 359
-#define __linux_connect 362
-
-#define __darwin_read 0x2000003
-#define __darwin_write 0x2000004
-#define __darwin_open 0x2000005
-#define __darwin_close 0x2000006
-#define __darwin_socket 0x2000061
-#define __darwin_connect 0x2000062
-#define __darwin_mmap 0x20000C5
-#define __darwin_fcntl 0x200005C
-#define __darwin_sysctl 0x20000CA
-
 #define O_RDONLY 00
-
-/* macos & linux are the same for PROT_READ, PROT_WRITE, MAP_FIXED & MAP_PRIVATE */
-#define PROT_READ 1
-#define PROT_WRITE 2
-#define MAP_PRIVATE 0x02
-#define MAP_FIXED 0x10
-#define MAP_ANON 0x20
-#define MAP_FAILED ((void *)-1)
 
 #define __darwin_MAP_ANON 0x1000
 
@@ -60,9 +32,9 @@ struct sockaddr_un
 
 typedef struct
 {
-	int fd;
+	SOCKET hSocket;
 	HANDLE hPipe;
-} bridge_thread;
+} BRIDGE_THREAD;
 
 void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
@@ -72,222 +44,125 @@ BOOL IsLinux;
 HANDLE hOut = NULL;
 HANDLE hIn = NULL;
 
-static force_inline int linux_syscall(int num,
-									  int arg1, int arg2, int arg3,
-									  int arg4, int arg5, int arg6)
-{
-	int ret;
-	__asm__ __volatile__(
-		"int $0x80\n"
-		: "=a"(ret)
-		: "0"(num), "b"(arg1), "c"(arg2),
-		  "d"(arg3), "S"(arg4), "D"(arg5)
-		: "memory");
-	return ret;
-}
-
-static naked int darwin_syscall(int num,
-								long arg1, long arg2, long arg3,
-								long arg4, long arg5, long arg6)
-{
-	register long r10 __asm__("r10") = arg4;
-	register long r8 __asm__("r8") = arg5;
-	register long r9 __asm__("r9") = arg6;
-	__asm__ __volatile__(
-		"syscall\n"
-		"jae noerror\n"
-		"negq %%rax\n"
-		"noerror:\n"
-		"ret\n"
-		: "=a"(num)
-		: "a"(num), "D"(arg1), "S"(arg2), "d"(arg3), "r"(r10), "r"(r8), "r"(r9)
-		: "memory");
-}
-
-static inline int sys_read(int fd, void *buf, size_t count)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_read, fd, buf, count, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_read, fd, buf, count, 0, 0, 0);
-}
-
-static inline int sys_write(int fd, const void *buf, size_t count)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_write, fd, buf, count, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_write, fd, buf, count, 0, 0, 0);
-}
-
-static inline int sys_open(const char *pathname, int flags, int mode)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_open, pathname, flags, mode, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_open, pathname, flags, mode, 0, 0, 0);
-}
-
-static inline int sys_close(int fd)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_close, fd, 0, 0, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_close, fd, 0, 0, 0, 0, 0);
-}
-
-static inline unsigned int *sys_mmap(unsigned int *addr, size_t length, int prot, int flags, int fd, off_t offset)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_mmap2, addr, length, prot, flags, fd, offset);
-	else
-	{
-		if (flags & MAP_ANON)
-		{
-			flags &= ~MAP_ANON;
-			flags |= __darwin_MAP_ANON;
-		}
-		return darwin_syscall(__darwin_mmap, addr, length, prot, flags, fd, offset);
-	}
-}
-
-static inline int sys_munmap(unsigned int *addr, size_t length)
-{
-	assert(IsLinux);
-	return linux_syscall(__linux_munmap, addr, length, 0, 0, 0, 0);
-}
-
-static inline int sys_socketcall(int call, unsigned long *args)
-{
-	assert(IsLinux);
-	return linux_syscall(__linux_socketcall, call, args, 0, 0, 0, 0);
-}
-
-static inline int sys_socket(int domain, int type, int protocol)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_socket, domain, type, protocol, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_socket, domain, type, protocol, 0, 0, 0);
-}
-
-static inline int sys_connect(int s, caddr_t name, socklen_t namelen)
-{
-	if (IsLinux)
-		return linux_syscall(__linux_connect, s, name, namelen, 0, 0, 0);
-	else
-		return darwin_syscall(__darwin_connect, s, name, namelen, 0, 0, 0);
-}
-
-void *environStr = NULL;
-char *native_getenv(const char *name)
+char *getenv_custom(const char *name)
 {
 	static char lpBuffer[512];
+	/* if "BRIDGE_RPC_PATH" is set, return it instead */
 	DWORD ret = GetEnvironmentVariable("BRIDGE_RPC_PATH", lpBuffer, sizeof(lpBuffer));
 	if (ret != 0)
-		return lpBuffer;
-
-	if (!IsLinux)
 	{
-		char *value = getenv(name);
-		if (value == NULL)
-		{
-			print("Failed to get environment variable: %s\n", name);
+		print("Custom path: %s\n", lpBuffer);
+		return lpBuffer;
+	}
 
-			/* Use GetEnvironmentVariable as a last resort */
-			DWORD ret = GetEnvironmentVariable(name, lpBuffer, sizeof(lpBuffer));
-			if (ret == 0)
-			{
-				print("GetEnvironmentVariable(\"%s\", ...) failed: %d\n", name, ret);
-				return NULL;
-			}
-			return lpBuffer;
-		}
+	char *value = getenv(name);
+	if (value != NULL)
+	{
+		print("getenv(\"%s\") -> \"%s\"\n", name, value);
 		return value;
 	}
 
-	/* I hope the 0x20000 is okay */
-	if (environStr == NULL)
-		environStr = sys_mmap(0x20000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-
-	if ((uintptr_t)environStr > 0x7effffff)
-		print("Warning: environStr %#lx is above 2GB\n", environStr);
-
-	const char *linux_environ = "/proc/self/environ";
-	memcpy(environStr, linux_environ, strlen(linux_environ) + 1);
-
-	int fd = sys_open(environStr, O_RDONLY, 0);
-
-	if (fd < 0)
+	if (IsLinux)
 	{
-		print("Failed to open /proc/self/environ: %d\n", fd);
+		FILE *f = fopen("/proc/self/environ", "rb");
+		if (f == NULL)
+		{
+			print("Failed to open /proc/self/environ\n");
+			return NULL;
+		}
+
+		static char envBuf[8192];
+		size_t totalRead = 0;
+		size_t n;
+		while ((n = fread(envBuf + totalRead, 1, sizeof(envBuf) - totalRead - 1, f)) > 0)
+			totalRead += n;
+
+		fclose(f);
+		envBuf[totalRead] = '\0';
+
+		/* /proc/self/environ is null-delimited KEY=VALUE\0KEY=VALUE\0... */
+		size_t nameLen = strlen(name);
+		char *entry = envBuf;
+		while (entry < envBuf + totalRead)
+		{
+			if (strncmp(entry, name, nameLen) == 0 && entry[nameLen] == '=')
+			{
+				print("/proc/self/environ \"%s\" -> \"%s\"\n",
+					  name, entry + nameLen + 1);
+				return entry + nameLen + 1;
+			}
+			entry += strlen(entry) + 1;
+		}
+
+		print("getenv_custom(\"%s\") failed\n", name);
 		return NULL;
 	}
 
-	char *buffer = sys_mmap(0x22000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-	char *result = NULL;
-	int bytesRead;
-
-	while ((bytesRead = sys_read(fd, buffer, 0x1000 - 1)) > 0)
+	/* Use GetEnvironmentVariable as a last resort */
+	ret = GetEnvironmentVariable(name, lpBuffer, sizeof(lpBuffer));
+	if (ret == 0)
 	{
-		buffer[bytesRead] = '\0';
-		char *env = buffer;
-		while (*env)
-		{
-			if (strstr(env, name) == env)
-			{
-				env += strlen(name);
-				if (*env == '=')
-				{
-					env++;
-					result = strdup(env);
-					break;
-				}
-			}
-			env += strlen(env) + 1;
-		}
-
-		if (result)
-			break;
+		print("GetEnvironmentVariable(\"%s\", ...) failed: %d\n", name, GetLastError());
+		return NULL;
 	}
-
-	sys_close(fd);
-	return result;
+	print("GetEnvironmentVariable(\"%s\", ...) -> \"%s\"\n", name, lpBuffer);
+	return lpBuffer;
 }
 
-void ConnectToSocket(int fd)
+const char *FindIPC()
 {
-	print("Connecting to socket\n");
-	const char *runtime;
 	if (IsLinux)
-		runtime = native_getenv("XDG_RUNTIME_DIR");
-	else
+		return getenv_custom("XDG_RUNTIME_DIR");
+
+	const char *runtime = getenv_custom("TMPDIR");
+	if (runtime != NULL)
+		return runtime;
+
+	runtime = "/tmp/rpc-bridge/tmpdir";
+	print("IPC directory not set, fallback to /tmp/rpc-bridge/tmpdir\n");
+
+	DWORD dwAttrib = GetFileAttributes(runtime);
+	if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
 	{
-		runtime = native_getenv("TMPDIR");
-		if (runtime == NULL)
-		{
-			runtime = "/tmp/rpc-bridge/tmpdir";
-			print("IPC directory not set, fallback to /tmp/rpc-bridge/tmpdir\n");
+		print("IPC directory does not exist: %s. Check the github guide on how to install the launchd service.\n", runtime);
 
-			// Check if the directory exists
-			DWORD dwAttrib = GetFileAttributes(runtime);
-			if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY))
-			{
-				print("IPC directory does not exist: %s. If you're on MacOS, see the github guide on how to install the launchd service.\n", runtime);
-				// Handle the case where the directory doesn't exist
-				// For example, create the directory
-
-				int result = MessageBox(NULL, "IPC directory does not exist\nDo you want to open the installation guide?",
-										"Directory not found",
-										MB_YESNO | MB_ICONSTOP);
-				if (result == IDYES)
-					ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/installation.html#macos", NULL, NULL, SW_SHOWNORMAL);
-				ExitProcess(1);
-			}
-		}
+		int result = MessageBox(NULL, "IPC directory does not exist\nDo you want to open the installation guide?",
+								"Directory not found",
+								MB_YESNO | MB_ICONSTOP);
+		if (result == IDYES)
+			ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/macos.html", NULL, NULL, SW_SHOWNORMAL);
+		ExitProcess(1);
 	}
 
+	return runtime;
+}
+
+SOCKET ConnectToSocket()
+{
+	print("Connecting to socket\n");
+	const char *runtime = FindIPC();
 	print("IPC directory: %s\n", runtime);
+
+	if (runtime == NULL)
+	{
+		print("Failed to find IPC directory\n");
+		if (!RunningAsService)
+		{
+			MessageBox(NULL, "Failed to find IPC directory.",
+					   "Directory not found",
+					   MB_OK | MB_ICONSTOP);
+		}
+		ExitProcess(1);
+	}
+
+	/* FIXME: WSAEAFNOSUPPORT: https://gitlab.winehq.org/wine/wine/-/merge_requests/2786 */
+	WSADATA wsaData;
+	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if (iResult != 0)
+	{
+		print("WSAStartup failed: %d\n", iResult);
+		ExitProcess(1);
+	}
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
 	const char *discordUnixSockets[] = {
@@ -299,181 +174,153 @@ void ConnectToSocket(int fd)
 		"%s/snap.discord-canary/discord-ipc-%d",
 	};
 
-	int sockRet = 0;
+	char unixPath[256];
 	for (int i = 0; i < sizeof(discordUnixSockets) / sizeof(discordUnixSockets[0]); i++)
 	{
-		size_t pipePathLen = strlen(runtime) + strlen(discordUnixSockets[i]) + 1;
-		char *pipePath = malloc(pipePathLen);
-
-		for (int j = 0; j < 16; j++)
+		for (int j = 0; j < 10; j++)
 		{
-			if (IsLinux)
+			snprintf(unixPath, sizeof(unixPath), discordUnixSockets[i], runtime, j);
+			print("Probing %s\n", unixPath);
+
+			SOCKET s = socket(AF_UNIX, SOCK_STREAM, 0);
+			if (s == INVALID_SOCKET)
 			{
-				struct sockaddr_un *socketAddr = sys_mmap(0x23000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-				print("Socket address allocated at %#lx\n", socketAddr);
-				socketAddr->sun_family = AF_UNIX;
-
-				snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
-				strcpy_s(socketAddr->sun_path, sizeof(socketAddr->sun_path), pipePath);
-				print("Probing %s\n", pipePath);
-
-				// unsigned long socketArgs[] = {
-				// 	(unsigned long)fd,
-				// 	(unsigned long)(intptr_t)&socketAddr,
-				// 	sizeof(socketAddr)};
-				unsigned long *socketArgs = sys_mmap(0x24000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-				socketArgs[0] = (unsigned long)fd;
-				socketArgs[1] = (unsigned long)(intptr_t)socketAddr;
-				socketArgs[2] = sizeof(struct sockaddr_un);
-				socketArgs[3] = 0;
-
-				sockRet = sys_socketcall(SYS_CONNECT, socketArgs);
-			}
-			else
-			{
-				struct sockaddr_un socketAddr;
-				socketAddr.sun_family = AF_UNIX;
-
-				snprintf(pipePath, pipePathLen, discordUnixSockets[i], runtime, j);
-				strcpy_s(socketAddr.sun_path, sizeof(socketAddr.sun_path), pipePath);
-				print("Probing %s\n", pipePath);
-
-				sockRet = sys_connect(fd, (caddr_t)&socketAddr, sizeof(socketAddr));
+				print("socket() failed: %d\n", WSAGetLastError());
+				WSACleanup();
+				ExitProcess(1);
 			}
 
-			print("    error: %d\n", sockRet);
-			if (sockRet >= 0)
-				break;
-		}
+			struct sockaddr_un addr;
+			addr.sun_family = AF_UNIX;
+			strncpy(addr.sun_path, unixPath, sizeof(addr.sun_path) - 1);
+			addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
 
-		if (sockRet >= 0)
-		{
-			print("Connecting to %s\n", pipePath);
-			free(pipePath);
-			break;
+			if (connect(s, (struct sockaddr *)&addr, sizeof(addr)) == 0)
+			{
+				print("Connected to %s\n", unixPath);
+				return s;
+			}
+
+			print("    error: %d\n", WSAGetLastError());
+			closesocket(s);
 		}
-		free(pipePath);
 	}
 
-	if (sockRet < 0)
-	{
-		print("socketcall failed for: %d\n", sockRet);
-		if (!RunningAsService)
-			MessageBox(NULL, "Failed to connect to Discord",
-					   "Socket Connection failed",
-					   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
-	}
+	if (!RunningAsService)
+		MessageBox(NULL, "Failed to connect to Discord",
+				   "Socket Connection failed", MB_OK | MB_ICONSTOP);
+	ExitProcess(1);
 }
 
 void PipeBufferInThread(LPVOID lpParam)
 {
-	bridge_thread *bt = (bridge_thread *)lpParam;
-	print("In thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
+	BRIDGE_THREAD *bt = (BRIDGE_THREAD *)lpParam;
+	print("IN thread started hSocket:%#x hPipe:%#x\n", bt->hSocket, bt->hPipe);
 	int EOFCount = 0;
-	char *l_buffer;
-	if (IsLinux)
-		l_buffer = sys_mmap(0x25000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-	else
-		l_buffer = malloc(BUFFER_LENGTH);
-	print("Buffer in thread allocated at %#lx\n", l_buffer);
+
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
-		int read = sys_read(bt->fd, l_buffer, BUFFER_LENGTH);
-
-		if (unlikely(read < 0))
+		DWORD dwRead;
+		int recvRet = recv((SOCKET)bt->hSocket, buffer, BUFFER_LENGTH, 0);
+		if (unlikely(recvRet == SOCKET_ERROR))
 		{
-			print("Failed to read from unix pipe: %d\n", read);
+			int err = WSAGetLastError();
+			if (err == WSAECONNRESET || err == WSAECONNABORTED || err == WSAESHUTDOWN)
+			{
+				RetryNewConnection = TRUE;
+				print("IN socket disconnected: %d\n", err);
+				break;
+			}
+			print("Failed to read from hSocket: %d\n", err);
 			Sleep(1000);
 			continue;
 		}
+		dwRead = (DWORD)recvRet;
 
-		if (EOFCount > 4)
-		{
-			print("EOF count exceeded\n");
-			RetryNewConnection = TRUE;
-			TerminateThread(hOut, 0);
-			break;
-		}
-
-		if (unlikely(read == 0))
+		if (unlikely(dwRead == 0))
 		{
 			print("EOF\n");
 			Sleep(1000);
+
+			if (EOFCount > 4)
+			{
+				print("EOF count exceeded\n");
+				RetryNewConnection = TRUE;
+				TerminateThread(hOut, 0);
+				break;
+			}
 			EOFCount++;
 			continue;
 		}
 		EOFCount = 0;
 
-		memcpy(buffer, l_buffer, read);
-
-		print("Reading %d bytes from unix pipe: \"", read);
-		for (int i = 0; i < read; i++)
+		print("Reading %d bytes from hSocket: \"", dwRead);
+		for (int i = 0; i < dwRead; i++)
 			print("%c", buffer[i]);
 		print("\"\n");
 
 		DWORD dwWritten;
-		WINBOOL bResult = WriteFile(bt->hPipe, buffer, read, &dwWritten, NULL);
+		WINBOOL bResult = WriteFile(bt->hPipe, buffer, dwRead, &dwWritten, NULL);
 		if (unlikely(bResult == FALSE))
 		{
 			if (GetLastError() == ERROR_BROKEN_PIPE)
 			{
 				RetryNewConnection = TRUE;
-				print("In Broken pipe\n");
+				print("IN Broken pipe\n");
 				break;
 			}
 
-			print("Failed to read from pipe: %s\n", GetErrorMessage());
+			print("Failed to write to hPipe: %d\n", GetLastError());
 			Sleep(1000);
 			continue;
 		}
 
-		if (unlikely(dwWritten < 0))
+		if (unlikely(dwWritten == 0))
 		{
-			print("Failed to write to pipe: %s\n", GetErrorMessage());
+			print("Failed to write to hPipe: %d\n", GetLastError());
 			Sleep(1000);
 			continue;
 		}
 
-		while (dwWritten < read)
+		DWORD dwTotalWritten = dwWritten;
+		BOOL broken = FALSE;
+		while (dwTotalWritten < dwRead)
 		{
-			int last_written = dwWritten;
-			WINBOOL bResult = WriteFile(bt->hPipe, buffer + dwWritten, read - dwWritten, &dwWritten, NULL);
+			bResult = WriteFile(bt->hPipe, buffer + dwTotalWritten, dwRead - dwTotalWritten, &dwWritten, NULL);
 			if (unlikely(bResult == FALSE))
 			{
 				if (GetLastError() == ERROR_BROKEN_PIPE)
 				{
 					RetryNewConnection = TRUE;
-					print("In Broken pipe\n");
+					print("IN Broken pipe\n");
+					broken = TRUE;
 					break;
 				}
 
-				print("Failed to read from pipe: %s\n", GetErrorMessage());
+				print("Failed to write to hPipe: %d\n", GetLastError());
 				Sleep(1000);
 				continue;
 			}
 
-			if (unlikely(last_written == dwWritten))
+			if (unlikely(dwWritten == 0))
 			{
-				print("Failed to write to pipe: %s\n", GetErrorMessage());
+				print("Failed to write to hPipe: %d\n", GetLastError());
 				Sleep(1000);
 				continue;
 			}
+			dwTotalWritten += dwWritten;
 		}
+		if (unlikely(broken))
+			break;
 	}
 }
 
 void PipeBufferOutThread(LPVOID lpParam)
 {
-	bridge_thread *bt = (bridge_thread *)lpParam;
-	print("Out thread started using fd %d and pipe %#x\n", bt->fd, bt->hPipe);
-	char *l_buffer;
-	if (IsLinux)
-		l_buffer = sys_mmap(0x26000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-	else
-		l_buffer = malloc(BUFFER_LENGTH);
-	print("Buffer out thread allocated at %#lx\n", l_buffer);
+	BRIDGE_THREAD *bt = (BRIDGE_THREAD *)lpParam;
+	print("OUT thread started using hSocket:%#x hPipe:%#x\n", bt->hSocket, bt->hPipe);
+
 	while (TRUE)
 	{
 		char buffer[BUFFER_LENGTH];
@@ -484,39 +331,64 @@ void PipeBufferOutThread(LPVOID lpParam)
 			if (GetLastError() == ERROR_BROKEN_PIPE)
 			{
 				RetryNewConnection = TRUE;
-				print("Out Broken pipe\n");
+				print("OUT Broken pipe\n");
 				break;
 			}
 
-			print("Failed to read from pipe: %s\n", GetErrorMessage());
+			print("Failed to read from hPipe: %d\n", GetLastError());
 			Sleep(1000);
 			continue;
 		}
 
-		print("Writing %d bytes to unix pipe: \"", dwRead);
+		print("Writing %d bytes to hSocket: \"", dwRead);
 		for (int i = 0; i < dwRead; i++)
 			print("%c", buffer[i]);
 		print("\"\n");
 
-		memcpy(l_buffer, buffer, dwRead);
-		int written = sys_write(bt->fd, l_buffer, dwRead);
-		if (unlikely(written < 0))
+		int sendRet = send((SOCKET)bt->hSocket, buffer, dwRead, 0);
+		if (unlikely(sendRet == SOCKET_ERROR))
 		{
-			print("Failed to write to socket: %d\n", written);
+			int err = WSAGetLastError();
+			if (err == WSAECONNRESET || err == WSAECONNABORTED || err == WSAESHUTDOWN)
+			{
+				RetryNewConnection = TRUE;
+				print("OUT socket disconnected: %d\n", err);
+				break;
+			}
+			print("Failed to write to hSocket: %d\n", err);
+			Sleep(1000);
 			continue;
 		}
 
-		while (written < dwRead)
+		DWORD totalWritten = (DWORD)sendRet;
+		BOOL broken = FALSE;
+		while (totalWritten < dwRead)
 		{
-			int last_written = written;
-			written += sys_write(bt->fd, buffer + written, dwRead - written);
-			if (unlikely(last_written == written))
+			int w = send((SOCKET)bt->hSocket, buffer + totalWritten, dwRead - totalWritten, 0);
+			if (unlikely(w == SOCKET_ERROR))
 			{
-				print("Failed to write to socket: %s\n", GetErrorMessage());
+				int err = WSAGetLastError();
+				if (err == WSAECONNRESET || err == WSAECONNABORTED || err == WSAESHUTDOWN)
+				{
+					RetryNewConnection = TRUE;
+					broken = TRUE;
+					break;
+				}
+				print("Failed to write to hSocket: %d\n", err);
 				Sleep(1000);
 				continue;
 			}
+
+			if (unlikely(w == 0))
+			{
+				print("Failed to write to hSocket: %d\n", GetLastError());
+				Sleep(1000);
+				continue;
+			}
+			totalWritten += (DWORD)w;
 		}
+		if (unlikely(broken))
+			break;
 	}
 }
 
@@ -525,12 +397,12 @@ void CreateBridge()
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
 NewConnection:
-	if (GetNamedPipeInfo((HANDLE)lpszPipename,
-						 NULL, NULL,
-						 NULL, NULL))
+	HANDLE hTest = CreateFile(lpszPipename, GENERIC_READ, 0,
+							  NULL, OPEN_EXISTING, 0, NULL);
+	if (hTest != INVALID_HANDLE_VALUE)
 	{
-		print("Pipe already exists: %s\n",
-			  GetErrorMessage());
+		CloseHandle(hTest);
+		print("hPipe already exists: %s\n", GetErrorMessage());
 		if (!RunningAsService)
 		{
 			MessageBox(NULL, GetErrorMessage(),
@@ -548,8 +420,7 @@ NewConnection:
 
 	if (hPipe == INVALID_HANDLE_VALUE)
 	{
-		print("Failed to create pipe: %s\n",
-			  GetErrorMessage());
+		print("Failed to create hPipe: %d\n", GetLastError());
 		if (!RunningAsService)
 		{
 			MessageBox(NULL, GetErrorMessage(),
@@ -559,113 +430,62 @@ NewConnection:
 		ExitProcess(1);
 	}
 
-	print("Pipe %s(%#x) created\n", lpszPipename, hPipe);
-	print("Waiting for pipe connection\n");
+	print("hPipe %s(%#x) created\n", lpszPipename, hPipe);
+	print("Waiting for hPipe connection\n");
 	if (!ConnectNamedPipe(hPipe, NULL))
 	{
-		print("Failed to connect to pipe: %s\n",
-			  GetErrorMessage());
+		print("Failed to connect to hPipe: %d\n", GetLastError());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   NULL, MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
-	print("Pipe connected\n");
+	print("hPipe connected\n");
 
-	int fd;
-	if (IsLinux)
-	{
-		// unsigned long socketArgs[] = {
-		// 	(unsigned long)AF_UNIX,
-		// 	(unsigned long)SOCK_STREAM,
-		// 	0};
-		unsigned long *socketArgs = sys_mmap(0x21000, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
-		socketArgs[0] = (unsigned long)AF_UNIX;
-		socketArgs[1] = (unsigned long)SOCK_STREAM;
-		socketArgs[2] = 0;
-		fd = sys_socketcall(SYS_SOCKET, socketArgs);
-
-		/* FIXME: WSAEAFNOSUPPORT: https://gitlab.winehq.org/wine/wine/-/merge_requests/2786 */
-		// WSADATA wsaData;
-		// int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-		// if (iResult != 0)
-		// 	printf("WSAStartup failed: %d\n", iResult);
-		// fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	}
-	else
-		fd = sys_socket(AF_UNIX, SOCK_STREAM, 0);
-
-	if (fd == INVALID_SOCKET)
-	{
-		print("invalid socket: %d %d\n", fd, WSAGetLastError());
-		ExitProcess(1);
-	}
-
-	if (fd < 0)
-	{
-		print("Failed to create socket: %d\n", fd);
-		if (!RunningAsService)
-			MessageBox(NULL, "Failed to create socket",
-					   NULL, MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
-	}
-
-	print("Socket %d created\n", fd);
-
-	ConnectToSocket(fd);
+	SOCKET hSocket = ConnectToSocket();
 	print("Connected to Discord\n");
 
-	bridge_thread bt = {fd, hPipe};
+	BRIDGE_THREAD bt = {hSocket, hPipe};
 
-	hIn = CreateThread(NULL, 0,
-					   (LPTHREAD_START_ROUTINE)PipeBufferInThread,
-					   (LPVOID)&bt,
-					   0, NULL);
-	print("Created in thread %#lx\n", hIn);
+	hIn = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)PipeBufferInThread, &bt, 0, NULL);
+	print("Created IN thread %#lx\n", hIn);
 
-	hOut = CreateThread(NULL, 0,
-						(LPTHREAD_START_ROUTINE)PipeBufferOutThread,
-						(LPVOID)&bt,
-						0, NULL);
-	print("Created out thread %#lx\n", hOut);
+	hOut = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)PipeBufferOutThread, &bt, 0, NULL);
+	print("Created OUT thread %#lx\n", hOut);
 
 	if (hIn == NULL || hOut == NULL)
 	{
 		print("Failed to create threads: %s\n", GetErrorMessage());
 		if (!RunningAsService)
-		{
 			MessageBox(NULL, GetErrorMessage(),
-					   "Failed to create threads",
-					   MB_OK | MB_ICONSTOP);
-		}
+					   "Failed to create threads", MB_OK | MB_ICONSTOP);
 		ExitProcess(1);
 	}
 
 	print("Waiting for threads to exit\n");
 	WaitForSingleObject(hOut, INFINITE);
-	print("Buffer out thread exited\n");
+	print("OUT thread exited\n");
 
 	if (RetryNewConnection)
 	{
 		RetryNewConnection = FALSE;
-		print("Retrying new connection\n");
-		if (!TerminateThread(hIn, 0))
-			print("Failed to terminate thread: %s\n",
-				  GetErrorMessage());
+		print("Retrying connection\n");
 
-		if (!TerminateThread(hOut, 0))
-			print("Failed to terminate thread: %s\n",
-				  GetErrorMessage());
+		TerminateThread(hIn, 0);
+		TerminateThread(hOut, 0);
 
-		sys_close(fd);
+		closesocket((SOCKET)hSocket);
 		CloseHandle(hOut);
 		CloseHandle(hIn);
 		CloseHandle(hPipe);
+		WSACleanup();
 		Sleep(1000);
 		goto NewConnection;
 	}
 
 	WaitForSingleObject(hIn, INFINITE);
-	print("Buffer in thread exited\n");
+	print("IN thread exited\n");
+	closesocket((SOCKET)hSocket);
 	CloseHandle(hPipe);
+	WSACleanup();
 }

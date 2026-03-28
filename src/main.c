@@ -13,7 +13,7 @@ void CreateBridge();
 void LaunchGame(int argc, char **argv);
 void ServiceMain(int argc, char *argv[]);
 void InstallService(int ServiceStartType, LPCSTR Path);
-char *native_getenv(const char *name);
+char *getenv_custom(const char *name);
 void RemoveService();
 extern BOOL IsLinux;
 
@@ -150,7 +150,7 @@ void HandleArguments(int argc, char *argv[])
 				(void *)GetProcAddress(GetModuleHandleA("KERNEL32"),
 									   "wine_get_dos_file_name");
 
-			char *unixPath = native_getenv("BRIDGE_PATH");
+			char *unixPath = getenv_custom("BRIDGE_PATH");
 			if (unixPath == NULL)
 			{
 				print("(Steam) BRIDGE_PATH not set\n");
@@ -197,7 +197,7 @@ void HandleArguments(int argc, char *argv[])
 				(void *)GetProcAddress(GetModuleHandleA("KERNEL32"),
 									   "wine_get_dos_file_name");
 
-			char *unixPath = native_getenv("BRIDGE_PATH");
+			char *unixPath = getenv_custom("BRIDGE_PATH");
 			if (unixPath == NULL)
 			{
 				print("(Steam) BRIDGE_PATH not set\n");
@@ -319,7 +319,7 @@ int main(int argc, char *argv[])
 		ExitProcess(1);
 	}
 
-	print("rpc-bridge v%s %s-%s\n", VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT);
+	print("rpc-bridge v%s %s-%s %s\n", VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT, IsLinux ? "Linux" : "macOS");
 	if (argc > 1)
 		HandleArguments(argc, argv);
 	else
