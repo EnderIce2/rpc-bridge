@@ -1,8 +1,8 @@
 C_SOURCES = $(shell find ./ -type f -name '*.c')
 C_OBJECTS = $(C_SOURCES:.c=.o)
 
-GIT_COMMIT = $(shell git rev-parse --short HEAD)
-GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
+GIT_COMMIT = $(shell git rev-parse --short HEAD      2>/dev/null || echo unknown)
+GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)
 
 CWARNFLAGS = -Wno-int-conversion -Wno-incompatible-pointer-types
 
