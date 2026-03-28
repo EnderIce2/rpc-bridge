@@ -21,12 +21,80 @@ extern BOOL IsLinux;
 
 HWND hwnd = NULL;
 HANDLE hBridge = NULL;
+BOOL gIsUpdate = FALSE;
 extern HANDLE hOut;
 extern HANDLE hIn;
 
-BOOL IsAlreadyRunning = FALSE;
+typedef struct
+{
+	WORD major, minor, patch, build;
+} Version;
+
+typedef enum
+{
+	BRIDGE_NOT_INSTALLED = 0,
+	BRIDGE_INSTALLED,
+	BRIDGE_INSTALLED_NEWER,
+	BRIDGE_INSTALLED_OLDER,
+} BRIDGE_UPDATER;
+
+Version GetFileVersion(const char *path)
+{
+	Version v = {0};
+	DWORD dwHandle;
+	DWORD dwSize = GetFileVersionInfoSize(path, &dwHandle);
+	if (dwSize == 0)
+		return v;
+
+	void *pData = LocalAlloc(LPTR, dwSize);
+	if (!pData)
+		return v;
+
+	if (GetFileVersionInfo(path, dwHandle, dwSize, pData))
+	{
+		VS_FIXEDFILEINFO *pInfo;
+		UINT uLen;
+		if (VerQueryValue(pData, "\\", (void **)&pInfo, &uLen))
+		{
+			v.major = HIWORD(pInfo->dwFileVersionMS);
+			v.minor = LOWORD(pInfo->dwFileVersionMS);
+			v.patch = HIWORD(pInfo->dwFileVersionLS);
+			v.build = LOWORD(pInfo->dwFileVersionLS);
+		}
+	}
+	LocalFree(pData);
+	return v;
+}
+
+BRIDGE_UPDATER CheckInstalledVersion(void)
+{
+	if (GetFileAttributes("C:\\windows\\bridge.exe") == INVALID_FILE_ATTRIBUTES)
+		return BRIDGE_NOT_INSTALLED;
+
+	Version installed = GetFileVersion("C:\\windows\\bridge.exe");
+	if (installed.major == 0 && installed.minor == 0)
+		return BRIDGE_INSTALLED_OLDER;
+
+	char currentPath[MAX_PATH];
+	GetModuleFileName(NULL, currentPath, MAX_PATH);
+	Version current = GetFileVersion(currentPath);
+
+	print("Installed version: %d.%d.%d.%d\n", installed.major, installed.minor, installed.patch, installed.build);
+	print("Current version:   %d.%d.%d.%d\n", current.major, current.minor, current.patch, current.build);
+
+	ULONGLONG inst = ((ULONGLONG)installed.major << 48) | ((ULONGLONG)installed.minor << 32) | ((ULONGLONG)installed.patch << 16) | (ULONGLONG)installed.build;
+	ULONGLONG curr = ((ULONGLONG)current.major << 48) | ((ULONGLONG)current.minor << 32) | ((ULONGLONG)current.patch << 16) | (ULONGLONG)current.build;
+
+	if (inst < curr)
+		return BRIDGE_INSTALLED_OLDER;
+	else if (inst > curr)
+		return BRIDGE_INSTALLED_NEWER;
+	return BRIDGE_INSTALLED;
+}
+
 VOID HandleStartButton(BOOL Silent)
 {
+	static BOOL IsAlreadyRunning = FALSE;
 	if (IsAlreadyRunning)
 	{
 		HWND item = GetDlgItem(hwnd, 4);
@@ -61,6 +129,7 @@ VOID HandleStartButton(BOOL Silent)
 	if (schService == NULL)
 	{
 		print("Service doesn't exist: %s\n", GetErrorMessage());
+		CloseServiceHandle(hSCManager);
 
 		/* Service doesn't exist; running without any service */
 
@@ -82,19 +151,27 @@ VOID HandleStartButton(BOOL Silent)
 	if (lpqsc == NULL)
 	{
 		print("LocalAlloc failed: %s\n", GetErrorMessage());
+		CloseServiceHandle(schService);
+		CloseServiceHandle(hSCManager);
 		return;
 	}
 
 	if (!QueryServiceConfig(schService, lpqsc, dwBytesNeeded, &dwBytesNeeded))
 	{
 		print("QueryServiceConfig failed: %s\n", GetErrorMessage());
+		CloseServiceHandle(schService);
+		CloseServiceHandle(hSCManager);
 		return;
 	}
 
 	if (StartService(schService, 0, NULL) == FALSE)
 	{
 		if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+		{
+			CloseServiceHandle(schService);
+			CloseServiceHandle(hSCManager);
 			return;
+		}
 		print("StartService failed: %s\n", GetErrorMessage());
 	}
 
@@ -108,11 +185,36 @@ VOID HandleStartButton(BOOL Silent)
 
 VOID HandleInstallButton()
 {
-	char filename[MAX_PATH];
-	GetModuleFileName(NULL, filename, MAX_PATH);
-	CopyFile(filename, "C:\\windows\\bridge.exe", FALSE);
-	InstallService(SERVICE_AUTO_START, "C:\\windows\\bridge.exe --service");
-	MessageBox(NULL, "Bridge installed successfully", "Info", MB_OK);
+	char currentPath[MAX_PATH];
+	GetModuleFileName(NULL, currentPath, MAX_PATH);
+
+	if (gIsUpdate)
+	{
+		RemoveService();
+
+		if (!CopyFile(currentPath, "C:\\windows\\bridge.exe", FALSE))
+		{
+			print("CopyFile failed: %s\n", GetErrorMessage());
+			MessageBox(NULL, "Failed to copy bridge executable", "Error", MB_OK | MB_ICONSTOP);
+			return;
+		}
+
+		InstallService(SERVICE_AUTO_START, "C:\\windows\\bridge.exe --service");
+		MessageBox(NULL, "Bridge updated successfully", "Info", MB_OK);
+	}
+	else
+	{
+		if (!CopyFile(currentPath, "C:\\windows\\bridge.exe", FALSE))
+		{
+			print("CopyFile failed: %s\n", GetErrorMessage());
+			MessageBox(NULL, "Failed to copy bridge executable", "Error", MB_OK | MB_ICONSTOP);
+			return;
+		}
+
+		InstallService(SERVICE_AUTO_START, "C:\\windows\\bridge.exe --service");
+		MessageBox(NULL, "Bridge installed successfully", "Info", MB_OK);
+	}
+
 	HandleStartButton(TRUE);
 	ExitProcess(0);
 }
@@ -120,7 +222,31 @@ VOID HandleInstallButton()
 VOID HandleRemoveButton()
 {
 	RemoveService();
-	MessageBox(NULL, "Bridge removed successfully", "Info", MB_OK);
+	if (DeleteFile("C:\\windows\\bridge.exe"))
+	{
+		MessageBox(NULL, "Bridge removed successfully", "Info", MB_OK);
+		ExitProcess(0);
+	}
+
+	DWORD err = GetLastError();
+	print("DeleteFile failed (%d), trying delayed delete\n", err);
+
+	if (MoveFileEx("C:\\windows\\bridge.exe", NULL, MOVEFILE_DELAY_UNTIL_REBOOT))
+	{
+		MessageBox(NULL,
+				   "Bridge service removed successfully.\n"
+				   "The bridge executable will be deleted on prefix restart.",
+				   "Info", MB_OK);
+		ExitProcess(0);
+	}
+
+	print("MoveFileEx failed: %s\n", GetErrorMessage());
+	MessageBox(NULL,
+			   "Bridge service was removed, but the executable could not be deleted.\n"
+			   "You can delete C:\\windows\\bridge.exe manually.",
+			   "Warning", MB_OK | MB_ICONWARNING);
+	ExitProcess(0);
+
 	ExitProcess(0);
 }
 
@@ -226,29 +352,36 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallStyle)
+VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallStyle, BOOL *bIsUpdate)
 {
 	*btnStartStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
 	*btnRemoveStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
 	*btnInstallStyle = WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_TABSTOP;
+	*bIsUpdate = FALSE;
 
-	// if (!IsLinux)
-	// {
-	// 	*btnInstallStyle |= WS_DISABLED;
-	// 	*btnRemoveStyle |= WS_DISABLED;
-	// 	return;
-	// }
-
+	int installed = CheckInstalledVersion();
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-	SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge", SERVICE_START | SERVICE_QUERY_STATUS);
+	SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge",
+									   SERVICE_START | SERVICE_QUERY_STATUS);
+	BOOL serviceExists = (schService != NULL);
 
-	if (schService != NULL)
+	if (installed == BRIDGE_INSTALLED_OLDER)
 	{
-		*btnInstallStyle |= WS_DISABLED;
+		/* Update available — always allow */
+		*bIsUpdate = TRUE;
+	}
+	else if (installed == BRIDGE_INSTALLED || installed == BRIDGE_INSTALLED_NEWER)
+	{
+		if (serviceExists)
+			*btnInstallStyle |= WS_DISABLED;
+	}
 
+	if (serviceExists)
+	{
 		SERVICE_STATUS_PROCESS ssStatus;
 		DWORD dwBytesNeeded;
-		assert(QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus,
+		assert(QueryServiceStatusEx(schService, SC_STATUS_PROCESS_INFO,
+									(LPBYTE)&ssStatus,
 									sizeof(SERVICE_STATUS_PROCESS), &dwBytesNeeded));
 
 		if (ssStatus.dwCurrentState == SERVICE_RUNNING ||
@@ -256,9 +389,12 @@ VOID SetButtonStyles(INT *btnStartStyle, INT *btnRemoveStyle, INT *btnInstallSty
 			*btnStartStyle |= WS_DISABLED;
 	}
 	else
-		*btnRemoveStyle |= WS_DISABLED;
+	{
+		*btnRemoveStyle |= WS_DISABLED; /* no service = nothing to remove */
+	}
 
-	CloseServiceHandle(schService);
+	if (schService != NULL)
+		CloseServiceHandle(schService);
 	CloseServiceHandle(hSCManager);
 }
 
@@ -266,7 +402,7 @@ int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 					 LPSTR lpCmdLine, int nCmdShow)
 {
 	INT btnStartStyle, btnRemoveStyle, btnInstallStyle;
-	SetButtonStyles(&btnStartStyle, &btnRemoveStyle, &btnInstallStyle);
+	SetButtonStyles(&btnStartStyle, &btnRemoveStyle, &btnInstallStyle, &gIsUpdate);
 
 	const char szClassName[] = "BridgeWindowClass";
 
@@ -335,6 +471,9 @@ int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	SendMessage(hbtn1, WM_SETFONT, hFont, TRUE);
 	SendMessage(hbtn2, WM_SETFONT, hFont, TRUE);
 	SendMessage(hbtn3, WM_SETFONT, hFont, TRUE);
+
+	if (gIsUpdate)
+		SetWindowText(hbtn2, "&Update");
 
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);

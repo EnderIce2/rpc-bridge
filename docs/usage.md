@@ -5,7 +5,7 @@
 - When running the program manually without providing any arguments it will show a GUI.
 ![gui](assets/gui.png "rpc-bridge GUI")
 - `Start` will start the service without installing itself.
-- `Install` will install the service.
+- `Install`/`Update` will install or update the service.
 - `Remove` will uninstall the service.
 
 ## CLI

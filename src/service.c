@@ -184,7 +184,6 @@ void RemoveService()
 		ExitProcess(1);
 	}
 
-	DeleteFile("C:\\windows\\bridge.exe");
 	print("Service removed successfully\n");
 	CloseServiceHandle(schService);
 	CloseServiceHandle(schSCManager);
