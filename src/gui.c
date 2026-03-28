@@ -138,6 +138,9 @@ VOID HandleStartButton(BOOL Silent)
 
 		HWND item = GetDlgItem(hwnd, /* Start Button */ 1);
 		Button_SetText(item, "&Stop");
+
+		/* FIXME: the Stop procedure is broken! There should be a stop procedure and not just killing threads. */
+		EnableWindow(item, FALSE);
 		item = GetDlgItem(hwnd, 4);
 		SetWindowText(item, "Bridge is running...");
 		IsAlreadyRunning = TRUE;
