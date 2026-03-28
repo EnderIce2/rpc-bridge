@@ -7,9 +7,9 @@ GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD)
 CWARNFLAGS = -Wno-int-conversion -Wno-incompatible-pointer-types
 
 CFLAGS = -std=c17 -DGIT_COMMIT='"$(GIT_COMMIT)"' -DGIT_BRANCH='"$(GIT_BRANCH)"'
-LFLAGS = -lgdi32 -lws2_32
+LFLAGS = -lgdi32 -lws2_32 -Wl,--export-all-symbols
 
-# DBGFLAGS = -Wl,--export-all-symbols -g -O0 -ggdb3 -Wall
+# DBGFLAGS = -g -O0 -ggdb3 -Wall
 
 all: build
 
