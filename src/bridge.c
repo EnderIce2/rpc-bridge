@@ -44,6 +44,8 @@ BOOL IsLinux;
 HANDLE hOut = NULL;
 HANDLE hIn = NULL;
 
+extern void SC_CreateBridge(void);
+
 char *getenv_custom(const char *name)
 {
 	static char lpBuffer[512];
@@ -115,8 +117,7 @@ char *getenv_custom(const char *name)
 		{
 			print("warning: getenv(\"XDG_RUNTIME_DIR\") failed, falling back to hardcoded path\n");
 			print("getenv_custom(\"%s\")! -> \"/run/user/1000\"\n", name);
-			strcpy_s(lpBuffer, sizeof(lpBuffer), "/run/user/1000");
-			return lpBuffer;
+			return "/run/user/1000";
 		}
 	}
 
@@ -207,7 +208,7 @@ SOCKET ConnectToSocket()
 					if (result == IDYES)
 						ShellExecute(NULL, "open", "https://github.com/enderice2/rpc-bridge/releases/tag/v1.4.0.1", NULL, NULL, SW_SHOWNORMAL);
 					WSACleanup();
-					ExitProcess(1);
+					return INVALID_SOCKET;
 				}
 
 				print("socket() failed: %d\n", WSAGetLastError());
@@ -419,6 +420,26 @@ void PipeBufferOutThread(LPVOID lpParam)
 
 void CreateBridge()
 {
+	{
+		WSADATA wsa;
+		WSAStartup(MAKEWORD(2, 2), &wsa);
+		SOCKET probe = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (probe == INVALID_SOCKET && WSAGetLastError() == WSAEAFNOSUPPORT)
+		{
+			print("AF_UNIX not supported, using syscall fallback\n");
+			WSACleanup();
+
+			print("Using syscall fallback\n");
+			SC_CreateBridge();
+			return;
+		}
+		else if (probe != INVALID_SOCKET)
+		{
+			print("AF_UNIX sockets supported, using normal socket code\n");
+			closesocket(probe);
+		}
+	}
+
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
 NewConnection:
@@ -468,6 +489,17 @@ NewConnection:
 	print("hPipe connected\n");
 
 	SOCKET hSocket = ConnectToSocket();
+	if (hSocket == INVALID_SOCKET)
+	{
+		print("Failed to connect to socket\n");
+		if (!RunningAsService)
+		{
+			MessageBox(NULL, "Failed to connect to socket",
+					   "Connection failed", MB_OK | MB_ICONSTOP);
+		}
+		ExitProcess(1);
+	}
+
 	print("Connected to Discord\n");
 
 	BRIDGE_THREAD bt = {hSocket, hPipe};
