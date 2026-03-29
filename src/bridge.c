@@ -65,48 +65,62 @@ char *getenv_custom(const char *name)
 	if (IsLinux)
 	{
 		FILE *f = fopen("/proc/self/environ", "rb");
-		if (f == NULL)
+		if (f != NULL)
+		{
+			static char envBuf[8192];
+			size_t totalRead = 0;
+			size_t n;
+			while ((n = fread(envBuf + totalRead, 1, sizeof(envBuf) - totalRead - 1, f)) > 0)
+				totalRead += n;
+
+			fclose(f);
+			envBuf[totalRead] = '\0';
+
+			/* /proc/self/environ is null-delimited KEY=VALUE\0KEY=VALUE\0... */
+			size_t nameLen = strlen(name);
+			char *entry = envBuf;
+			while (entry < envBuf + totalRead)
+			{
+				if (strncmp(entry, name, nameLen) == 0 && entry[nameLen] == '=')
+				{
+					print("/proc/self/environ \"%s\" -> \"%s\"\n",
+						  name, entry + nameLen + 1);
+					return entry + nameLen + 1;
+				}
+				entry += strlen(entry) + 1;
+			}
+		}
+		else
 		{
 			print("Failed to open /proc/self/environ\n");
 			return NULL;
 		}
 
-		static char envBuf[8192];
-		size_t totalRead = 0;
-		size_t n;
-		while ((n = fread(envBuf + totalRead, 1, sizeof(envBuf) - totalRead - 1, f)) > 0)
-			totalRead += n;
-
-		fclose(f);
-		envBuf[totalRead] = '\0';
-
-		/* /proc/self/environ is null-delimited KEY=VALUE\0KEY=VALUE\0... */
-		size_t nameLen = strlen(name);
-		char *entry = envBuf;
-		while (entry < envBuf + totalRead)
-		{
-			if (strncmp(entry, name, nameLen) == 0 && entry[nameLen] == '=')
-			{
-				print("/proc/self/environ \"%s\" -> \"%s\"\n",
-					  name, entry + nameLen + 1);
-				return entry + nameLen + 1;
-			}
-			entry += strlen(entry) + 1;
-		}
-
 		print("getenv_custom(\"%s\") failed\n", name);
-		return NULL;
 	}
 
 	/* Use GetEnvironmentVariable as a last resort */
 	ret = GetEnvironmentVariable(name, lpBuffer, sizeof(lpBuffer));
-	if (ret == 0)
+	if (ret != 0)
 	{
-		print("GetEnvironmentVariable(\"%s\", ...) failed: %d\n", name, GetLastError());
-		return NULL;
+		print("GetEnvironmentVariable(\"%s\", ...) -> \"%s\"\n", name, lpBuffer);
+		return lpBuffer;
 	}
-	print("GetEnvironmentVariable(\"%s\", ...) -> \"%s\"\n", name, lpBuffer);
-	return lpBuffer;
+	print("GetEnvironmentVariable(\"%s\", ...) failed: %d\n", name, GetLastError());
+
+	/* if the name is "XDG_RUNTIME_DIR", return "/run/user/1000", not ideal but it should work */
+	if (IsLinux)
+	{
+		if (strcmp(name, "XDG_RUNTIME_DIR") == 0)
+		{
+			print("warning: getenv(\"XDG_RUNTIME_DIR\") failed, falling back to hardcoded path\n");
+			print("getenv_custom(\"%s\")! -> \"/run/user/1000\"\n", name);
+			strcpy_s(lpBuffer, sizeof(lpBuffer), "/run/user/1000");
+			return lpBuffer;
+		}
+	}
+
+	return NULL;
 }
 
 const char *FindIPC()
