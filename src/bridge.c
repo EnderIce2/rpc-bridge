@@ -199,6 +199,17 @@ SOCKET ConnectToSocket()
 			SOCKET s = socket(AF_UNIX, SOCK_STREAM, 0);
 			if (s == INVALID_SOCKET)
 			{
+				if (WSAGetLastError() == WSAEAFNOSUPPORT)
+				{
+					print("AF_UNIX sockets not supported on this version of Wine/Proton!\nv1.4.0.1 is the version that works for you: https://github.com/enderice2/rpc-bridge/releases/tag/v1.4.0.1\n");
+					int result = MessageBox(NULL, "AF_UNIX sockets not supported on this version of Wine/Proton!\nUse an older version of bridge (v1.4.0.1) or install a newer version of Wine/Proton.\n\nDo you want to open the download page for v1.4.0.1?",
+											NULL, MB_YESNO | MB_ICONQUESTION);
+					if (result == IDYES)
+						ShellExecute(NULL, "open", "https://github.com/enderice2/rpc-bridge/releases/tag/v1.4.0.1", NULL, NULL, SW_SHOWNORMAL);
+					WSACleanup();
+					ExitProcess(1);
+				}
+
 				print("socket() failed: %d\n", WSAGetLastError());
 				WSACleanup();
 				ExitProcess(1);
