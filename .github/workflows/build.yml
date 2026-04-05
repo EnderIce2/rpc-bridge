@@ -23,13 +23,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: dependencies
       run: sudo apt update && sudo apt -y install gcc-mingw-w64 make
     - name: make
       run: make
     - name: artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: bridge
         path: build
@@ -40,13 +40,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: recursive
         fetch-depth: 0
 
     - name: Download All Builds
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
 
     - name: Update Nightly
       run: gh release upload nightly bridge/* -R ${{github.repository}} --clobber
