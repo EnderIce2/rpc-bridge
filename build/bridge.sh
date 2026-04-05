@@ -23,11 +23,11 @@ TEMP_PATH=${TEMP_PATH:-"$TMPDIR"}
 
 VESSEL_PATH="$BRIDGE_PATH"
 IPC_PATHS="$TEMP_PATH /run/user/$(id -u) $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
-for discord_ipc in $IPC_PATHS; do
-	if [ -S "$discord_ipc"/discord-ipc-? ]; then
-		VESSEL_PATH="$BRIDGE_PATH:$(echo "$discord_ipc"/discord-ipc-?)"
-		break
-	fi
-done
+
+# shellcheck disable=2086
+socket=$(find $IPC_PATHS -mindepth 1 -maxdepth 1 -type s -name 'discord-ipc-*' 2>/dev/null|head -n 1)
+if [ -S "$socket" ]; then
+    VESSEL_PATH="$BRIDGE_PATH:$socket"
+fi
 
 PROTON_REMOTE_DEBUG_CMD="$BRIDGE_CMD" PRESSURE_VESSEL_FILESYSTEMS_RW="$VESSEL_PATH:$PRESSURE_VESSEL_FILESYSTEMS_RW" "$@"
