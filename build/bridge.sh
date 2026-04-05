@@ -22,7 +22,7 @@ TEMP_PATH="$XDG_RUNTIME_DIR"
 TEMP_PATH=${TEMP_PATH:-"$TMPDIR"}
 
 VESSEL_PATH="$BRIDGE_PATH"
-IPC_PATHS="$TEMP_PATH /run/user/$(id -u) $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
+IPC_PATHS="$TEMP_PATH /run/user/$(id -u) $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary $TEMP_PATH/app/com.discordapp.DiscordCanary"
 
 # shellcheck disable=2086
 for socket in $(find $IPC_PATHS -mindepth 1 -maxdepth 1 \( -type s -o -type f \) -name 'discord-ipc-*' 2>/dev/null); do
