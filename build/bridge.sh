@@ -6,7 +6,8 @@
 # As requested by https://github.com/EnderIce2/rpc-bridge/issues/2
 
 # Exporting BRIDGE_PATH to provide the bridge with its location.
-export BRIDGE_PATH="$(dirname "$0")/bridge.exe"
+BRIDGE_PATH="$(dirname "$0")/bridge.exe"
+export BRIDGE_PATH
 
 #  The "--steam" option prevents the game from
 # hanging as "running" in Steam after it is closed.
@@ -21,7 +22,7 @@ TEMP_PATH="$XDG_RUNTIME_DIR"
 TEMP_PATH=${TEMP_PATH:-"$TMPDIR"}
 
 VESSEL_PATH="$BRIDGE_PATH"
-IPC_PATHS="$TEMP_PATH /run/user/$UID $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
+IPC_PATHS="$TEMP_PATH /run/user/$(id -u) $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
 for discord_ipc in $IPC_PATHS; do
 	if [ -S "$discord_ipc"/discord-ipc-? ]; then
 		VESSEL_PATH="$BRIDGE_PATH:$(echo "$discord_ipc"/discord-ipc-?)"
