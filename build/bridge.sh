@@ -25,9 +25,11 @@ VESSEL_PATH="$BRIDGE_PATH"
 IPC_PATHS="$TEMP_PATH /run/user/$(id -u) $TEMP_PATH/app/com.discordapp.Discord $TEMP_PATH/.flatpak/dev.vencord.Vesktop/xdg-run $TEMP_PATH/snap.discord $TEMP_PATH/snap.discord-canary"
 
 # shellcheck disable=2086
-socket=$(find $IPC_PATHS -mindepth 1 -maxdepth 1 -type s -name 'discord-ipc-*' 2>/dev/null|head -n 1)
-if [ -S "$socket" ]; then
-    VESSEL_PATH="$BRIDGE_PATH:$socket"
-fi
+for socket in $(find $IPC_PATHS -mindepth 1 -maxdepth 1 \( -type s -o -type f \) -name 'discord-ipc-*' 2>/dev/null); do
+    case ":$VESSEL_PATH:" in
+        *":$socket:"*) ;;
+        *) { [ -S "$socket" ] || [ -f "$socket" ]; } && VESSEL_PATH="$VESSEL_PATH:$socket" ;;
+    esac
+done
 
 PROTON_REMOTE_DEBUG_CMD="$BRIDGE_CMD" PRESSURE_VESSEL_FILESYSTEMS_RW="$VESSEL_PATH:$PRESSURE_VESSEL_FILESYSTEMS_RW" "$@"
