@@ -35,6 +35,7 @@ jobs:
         path: build
 
   nightly:
+    if: github.event_name != 'pull_request'
     name: Upload Nightly Build to GitHub Releases
     runs-on: ubuntu-latest
     needs: [build]
