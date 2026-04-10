@@ -4,16 +4,14 @@ on:
   push:
     branches: [ "master" ]
     paths-ignore:
-      - '.github/FUNDING.yml'
-      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/**'
       - '.vscode/**'
       - 'docs/**'
       - mkdocs.yml
   pull_request:
     branches: [ "master" ]
     paths-ignore:
-      - '.github/FUNDING.yml'
-      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/**'
       - '.vscode/**'
       - 'docs/**'
       - mkdocs.yml
@@ -55,43 +53,7 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R
 
-    - name: Check which files changed
-      id: check
-      run: |
-        cd bridge
-        sha256sum bridge.exe bridge.sh launchd.sh > /tmp/new.sha256
-        gh release download nightly -p "*.sha256" -D /tmp 2>/dev/null || echo "" > /tmp/old.sha256
-        for file in bridge.exe bridge.sh launchd.sh; do
-          NEW=$(sha256sum "$file" | awk '{print $1}')
-          OLD=$(grep "$file" /tmp/*.sha256 2>/dev/null | awk '{print $1}' || echo "")
-          
-          if [ "$NEW" != "$OLD" ]; then
-            echo "$file changed"
-            echo "upload_$file=true" >> $GITHUB_OUTPUT
-          else
-            echo "$file unchanged"
-            echo "upload_$file=false" >> $GITHUB_OUTPUT
-          fi
-        done
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-    - name: Upload changed files
-      run: |
-        cd bridge
-        FILES_TO_UPLOAD=""
-        
-        [ "${{ steps.check.outputs.upload_bridge.exe }}" = "true" ] && FILES_TO_UPLOAD="$FILES_TO_UPLOAD bridge.exe"
-        [ "${{ steps.check.outputs.upload_bridge.sh }}" = "true" ] && FILES_TO_UPLOAD="$FILES_TO_UPLOAD bridge.sh"
-        [ "${{ steps.check.outputs.upload_launchd.sh }}" = "true" ] && FILES_TO_UPLOAD="$FILES_TO_UPLOAD launchd.sh"
-        
-        if [ -n "$FILES_TO_UPLOAD" ]; then
-          gh release upload nightly $FILES_TO_UPLOAD -R ${{github.repository}} --clobber
-          sha256sum $FILES_TO_UPLOAD > checksums.sha256
-          gh release upload nightly checksums.sha256 -R ${{github.repository}} --clobber
-          echo "Uploaded: $FILES_TO_UPLOAD"
-        else
-          echo "No files changed - skipping upload"
-        fi
+    - name: Update Nightly
+      run: gh release upload nightly bridge/* -R ${{github.repository}} --clobber
       env:
         GH_TOKEN: ${{ github.token }}
