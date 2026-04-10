@@ -99,6 +99,9 @@ void DetectWine()
 
 void HandleArguments(int argc, char *argv[])
 {
+	if (argc <= 1)
+		return;
+
 	if (strcmp(argv[1], "--service") == 0)
 	{
 		RunningAsService = TRUE;
@@ -273,11 +276,6 @@ void HandleArguments(int argc, char *argv[])
 		CreateBridge();
 		ExitBridge(0);
 	}
-	else if (strcmp(argv[1], "--version") == 0)
-	{
-		/* Already shows the version */
-		ExitBridge(0);
-	}
 	else if (strcmp(argv[1], "--help") == 0)
 	{
 		print("Usage:\n"
@@ -289,13 +287,13 @@ void HandleArguments(int argc, char *argv[])
 			  "  --version      Show version\n"
 			  "\n"
 			  "  --install      Install service\n"
-			  "        This will copy the binary to C:\\windows\\bridge.exe and register it as a service\n"
+			  "        Copy the binary to C:\\windows\\bridge.exe and register it as a service\n"
 			  "\n"
 			  "  --uninstall    Uninstall service\n"
-			  "        This will remove the service and delete C:\\windows\\bridge.exe\n"
+			  "        Remove the service and delete C:\\windows\\bridge.exe\n"
 			  "\n"
 			  "  --steam        Reserved for Steam\n"
-			  "        This will start the service and exit (used with bridge.sh)\n"
+			  "        Start the service and exit (used with bridge.sh)\n"
 			  "\n"
 			  "  --no-service   Do not run as service\n"
 			  "        (only for --steam)\n"
@@ -303,7 +301,7 @@ void HandleArguments(int argc, char *argv[])
 			  "  --service      Reserved for service\n"
 			  "\n"
 			  "  --rpc <dir>    Set RPC_PATH environment variable\n"
-			  "        This is used to specify the directory where 'discord-ipc-0' is located\n"
+			  "        Used to specify the directory where 'discord-ipc-0' is located\n"
 			  "\n"
 			  "Note: If no arguments are provided, the GUI will be shown instead\n",
 			  argv[0]);
@@ -313,6 +311,12 @@ void HandleArguments(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+	if (argc > 1 && strcmp(argv[1], "--version") == 0)
+	{
+		printf("%s-%s\n", VER_VERSION_STR, GIT_COMMIT);
+		ExitBridge(0);
+	}
+
 	LogInit();
 	DetectWine();
 
@@ -320,10 +324,8 @@ int main(int argc, char *argv[])
 		  VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT,
 		  IsLinux ? "Linux" : "macOS", wine_get_build_id());
 
-	if (argc > 1)
-		HandleArguments(argc, argv);
-	else
-		CreateGUI();
+	HandleArguments(argc, argv);
+	CreateGUI();
 
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CreateBridge,
 				 NULL, 0, NULL);
