@@ -26,10 +26,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
+
     - name: dependencies
       run: sudo apt update && sudo apt -y install gcc-mingw-w64 make
+
     - name: make
       run: make
+
     - name: artifact
       uses: actions/upload-artifact@v7
       with:
