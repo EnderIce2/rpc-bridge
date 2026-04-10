@@ -56,11 +56,23 @@ void print(char const *fmt, ...)
 
 void LogInit()
 {
+	static const LPCTSTR logPath = "C:\\windows\\logs\\bridge.log";
+	static const LPCSTR rotatedLogPath = "C:\\windows\\logs\\bridge.log.1";
+	static const LARGE_INTEGER maxLogSize = {.QuadPart = 1LL * 1024 * 1024};
+
 	CreateDirectory("C:\\windows\\logs", NULL);
 
-	/* TODO: log rotation */
+	WIN32_FILE_ATTRIBUTE_DATA logAttrs;
+	if (GetFileAttributesEx(logPath, GetFileExInfoStandard, &logAttrs))
+	{
+		LARGE_INTEGER logSize;
+		logSize.HighPart = (LONG)logAttrs.nFileSizeHigh;
+		logSize.LowPart = logAttrs.nFileSizeLow;
+		if (logSize.QuadPart >= maxLogSize.QuadPart)
+			MoveFileEx(logPath, rotatedLogPath, MOVEFILE_REPLACE_EXISTING);
+	}
 
-	g_logFile = fopen("C:\\windows\\logs\\bridge.log", "a");
+	g_logFile = fopen(logPath, "a");
 	if (g_logFile == NULL)
 	{
 		printf("Failed to open log file: %ld\n", GetLastError());
