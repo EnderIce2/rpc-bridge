@@ -5,6 +5,7 @@
 SERVICE_STATUS g_ServiceStatus;
 SERVICE_STATUS_HANDLE g_StatusHandle = NULL;
 
+VOID ExitBridge(UINT uExitCode);
 void print(char const *fmt, ...);
 void CreateBridge();
 LPTSTR GetErrorMessage();
@@ -93,7 +94,7 @@ void InstallService(int ServiceStartType, LPCSTR Path)
 	// 	/* FIXME: I don't know how to get the TMPDIR without getenv */
 	// 	MessageBox(NULL, "Registering as a service is not supported on macOS at the moment.",
 	// 			   "Unsupported", MB_OK | MB_ICONINFORMATION);
-	// 	ExitProcess(1);
+	// 	ExitBridge(1);
 	// }
 
 	SC_HANDLE schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
@@ -103,7 +104,7 @@ void InstallService(int ServiceStartType, LPCSTR Path)
 		MessageBox(NULL, GetErrorMessage(),
 				   "OpenSCManager",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	DWORD dwTagId;
@@ -119,7 +120,7 @@ void InstallService(int ServiceStartType, LPCSTR Path)
 		MessageBox(NULL, GetErrorMessage(),
 				   "CreateService",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("Service installed successfully\n");
@@ -140,7 +141,7 @@ void RemoveService()
 		MessageBox(NULL, GetErrorMessage(),
 				   "OpenSCManager",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	schService = OpenService(schSCManager, "rpc-bridge",
@@ -151,7 +152,7 @@ void RemoveService()
 		MessageBox(NULL, GetErrorMessage(),
 				   "OpenService",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	if (ControlService(schService, SERVICE_CONTROL_STOP, &ssSvcStatus))
@@ -181,7 +182,7 @@ void RemoveService()
 		MessageBox(NULL, GetErrorMessage(),
 				   "DeleteService",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("Service removed successfully\n");

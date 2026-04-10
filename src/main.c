@@ -5,9 +5,15 @@
 
 #include "resource.h"
 
-FILE *g_logFile = NULL;
 BOOL RunningAsService = FALSE;
 
+static const char *(CDECL *wine_get_version)(void);
+static const char *(CDECL *wine_get_build_id)(void);
+static void(CDECL *wine_get_host_version)(const char **sysname, const char **release);
+
+void LogInit();
+void LogClose();
+void print(char const *fmt, ...);
 void CreateGUI();
 void CreateBridge();
 void LaunchGame(int argc, char **argv);
@@ -16,6 +22,13 @@ void InstallService(int ServiceStartType, LPCSTR Path);
 char *getenv_custom(const char *name);
 void RemoveService();
 extern BOOL IsLinux;
+
+/* this because atexit() doesn't work with ExitProcess */
+VOID ExitBridge(UINT uExitCode)
+{
+	LogClose();
+	ExitProcess(uExitCode);
+}
 
 LPTSTR GetErrorMessage()
 {
@@ -51,45 +64,37 @@ void DetectWine()
 	HMODULE hNTdll = GetModuleHandle("ntdll.dll");
 	if (!hNTdll)
 	{
-		MessageBox(NULL, "Failed to load ntdll.dll",
-				   GetErrorMessage(), MB_OK | MB_ICONERROR);
-		ExitProcess(1);
+		print("Failed to load ntdll.dll: %s\n", GetErrorMessage());
+		ExitBridge(1);
 	}
 
 	if (!GetProcAddress(hNTdll, "wine_get_version"))
 	{
+		print("This program is only intended to run under Wine.\n");
 		MessageBox(NULL, "This program is only intended to run under Wine.",
 				   "Error", MB_OK | MB_ICONINFORMATION);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
-	static void(CDECL * wine_get_host_version)(const char **sysname, const char **release);
-	wine_get_host_version = (void *)GetProcAddress(hNTdll, "wine_get_host_version");
+	/* https://gitlab.winehq.org/wine/wine/-/blob/master/dlls/ntdll/version.c#L215-248 */
+	wine_get_version = GetProcAddress(hNTdll, "wine_get_version");
+	wine_get_build_id = GetProcAddress(hNTdll, "wine_get_build_id");
+	wine_get_host_version = GetProcAddress(hNTdll, "wine_get_host_version");
+	assert(wine_get_version && wine_get_build_id && wine_get_host_version);
 
-	assert(wine_get_host_version);
 	const char *__sysname;
 	const char *__release;
 	wine_get_host_version(&__sysname, &__release);
 	if (strcmp(__sysname, "Linux") != 0 && strcmp(__sysname, "Darwin") != 0)
 	{
+		print("Running on unsupported platform \"%s\" \"%s\"\n", __sysname, __release);
 		int result = MessageBox(NULL, "This program is designed for Linux and macOS only!\nDo you want to proceed?",
 								NULL, MB_YESNO | MB_ICONQUESTION);
 		if (result == IDNO)
-			ExitProcess(1);
+			ExitBridge(1);
 	}
 
 	IsLinux = strcmp(__sysname, "Linux") == 0;
-}
-
-void print(char const *fmt, ...)
-{
-	va_list args;
-	va_start(args, fmt);
-	vprintf(fmt, args);
-	va_end(args);
-	va_start(args, fmt);
-	vfprintf(g_logFile, fmt, args);
-	va_end(args);
 }
 
 void HandleArguments(int argc, char *argv[])
@@ -108,7 +113,7 @@ void HandleArguments(int argc, char *argv[])
 		if (StartServiceCtrlDispatcher(ServiceTable) == FALSE)
 		{
 			print("Service failed to start\n");
-			ExitProcess(1);
+			ExitBridge(1);
 		}
 	}
 	else if (strcmp(argv[1], "--steam") == 0)
@@ -131,7 +136,7 @@ void HandleArguments(int argc, char *argv[])
 		if (hSCManager == NULL)
 		{
 			print("(Steam) OpenSCManager: %s\n", GetErrorMessage());
-			ExitProcess(1);
+			ExitBridge(1);
 		}
 
 		SC_HANDLE schService = OpenService(hSCManager, "rpc-bridge",
@@ -141,7 +146,7 @@ void HandleArguments(int argc, char *argv[])
 			if (GetLastError() != ERROR_SERVICE_DOES_NOT_EXIST)
 			{
 				print("(Steam) OpenService: %s\n", GetErrorMessage());
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 
 			print("(Steam) Service does not exist, registering...\n");
@@ -154,7 +159,7 @@ void HandleArguments(int argc, char *argv[])
 			if (unixPath == NULL)
 			{
 				print("(Steam) BRIDGE_PATH not set\n");
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 			WCHAR *dosPath = wine_get_dos_file_name(unixPath);
 			LPSTR asciiPath = (LPSTR)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH);
@@ -173,7 +178,7 @@ void HandleArguments(int argc, char *argv[])
 			if (schService == NULL)
 			{
 				print("(Steam) Cannot open service after creation: %s\n", GetErrorMessage());
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 		}
 		else
@@ -184,13 +189,13 @@ void HandleArguments(int argc, char *argv[])
 			if (lpqsc == NULL)
 			{
 				print("(Steam) LocalAlloc: %s\n", GetErrorMessage());
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 
 			if (!QueryServiceConfig(schService, lpqsc, dwBytesNeeded, &dwBytesNeeded))
 			{
 				print("(Steam) QueryServiceConfig: %s\n", GetErrorMessage());
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 
 			WCHAR *(CDECL * wine_get_dos_file_name)(LPCSTR str) =
@@ -201,7 +206,7 @@ void HandleArguments(int argc, char *argv[])
 			if (unixPath == NULL)
 			{
 				print("(Steam) BRIDGE_PATH not set\n");
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 			WCHAR *dosPath = wine_get_dos_file_name(unixPath);
 			LPSTR asciiPath = (LPSTR)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, MAX_PATH);
@@ -222,25 +227,24 @@ void HandleArguments(int argc, char *argv[])
 		}
 
 		print("(Steam) Starting service and then exiting...\n");
-		fclose(g_logFile);
 
 		if (StartService(schService, 0, NULL) != FALSE)
 		{
 			CloseServiceHandle(schService);
 			CloseServiceHandle(hSCManager);
-			ExitProcess(0);
+			ExitBridge(0);
 		}
 		else if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
 		{
 			CloseServiceHandle(schService);
 			CloseServiceHandle(hSCManager);
-			ExitProcess(0);
+			ExitBridge(0);
 		}
 
 		MessageBox(NULL, GetErrorMessage(),
 				   "StartService",
 				   MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 	else if (strcmp(argv[1], "--install") == 0)
 	{
@@ -249,30 +253,30 @@ void HandleArguments(int argc, char *argv[])
 		CopyFile(filename, "C:\\windows\\bridge.exe", FALSE);
 
 		InstallService(SERVICE_AUTO_START, "C:\\windows\\bridge.exe --service");
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 	else if (strcmp(argv[1], "--uninstall") == 0)
 	{
 		RemoveService();
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 	else if (strcmp(argv[1], "--rpc") == 0)
 	{
 		if (argc < 3)
 		{
 			print("No directory provided\n");
-			ExitProcess(1);
+			ExitBridge(1);
 		}
 
 		SetEnvironmentVariable("BRIDGE_RPC_PATH", argv[2]);
 		print("BRIDGE_RPC_PATH has been set to \"%s\"\n", argv[2]);
 		CreateBridge();
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 	else if (strcmp(argv[1], "--version") == 0)
 	{
 		/* Already shows the version */
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 	else if (strcmp(argv[1], "--help") == 0)
 	{
@@ -303,23 +307,19 @@ void HandleArguments(int argc, char *argv[])
 			  "\n"
 			  "Note: If no arguments are provided, the GUI will be shown instead\n",
 			  argv[0]);
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 }
 
 int main(int argc, char *argv[])
 {
+	LogInit();
 	DetectWine();
-	char *logFilePath = "C:\\windows\\logs\\bridge.log";
-	g_logFile = fopen(logFilePath, "w");
-	if (g_logFile == NULL)
-	{
-		MessageBox(NULL, "Failed to open logs file", "Error", MB_OK | MB_ICONERROR);
-		printf("Failed to open logs file: %ld\n", GetLastError());
-		ExitProcess(1);
-	}
 
-	print("rpc-bridge v%s %s-%s %s\n", VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT, IsLinux ? "Linux" : "macOS");
+	print("rpc-bridge v%s %s-%s %s %s\n",
+		  VER_VERSION_STR, GIT_BRANCH, GIT_COMMIT,
+		  IsLinux ? "Linux" : "macOS", wine_get_build_id());
+
 	if (argc > 1)
 		HandleArguments(argc, argv);
 	else
@@ -329,9 +329,7 @@ int main(int argc, char *argv[])
 				 NULL, 0, NULL);
 	Sleep(500);
 	LaunchGame(argc, argv);
-
-	fclose(g_logFile);
-	ExitProcess(0);
+	ExitBridge(0);
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)

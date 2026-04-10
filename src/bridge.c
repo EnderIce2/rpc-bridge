@@ -36,6 +36,7 @@ typedef struct
 	HANDLE hPipe;
 } BRIDGE_THREAD;
 
+VOID ExitBridge(UINT uExitCode);
 void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
@@ -44,7 +45,7 @@ BOOL IsLinux;
 HANDLE hOut = NULL;
 HANDLE hIn = NULL;
 
-extern void SC_CreateBridge(void);
+extern void SC_CreateBridge();
 
 char *getenv_custom(const char *name)
 {
@@ -146,7 +147,7 @@ const char *FindIPC()
 								MB_YESNO | MB_ICONSTOP);
 		if (result == IDYES)
 			ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/macos.html", NULL, NULL, SW_SHOWNORMAL);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	return runtime;
@@ -167,7 +168,7 @@ SOCKET ConnectToSocket()
 					   "Directory not found",
 					   MB_OK | MB_ICONSTOP);
 		}
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	/* FIXME: WSAEAFNOSUPPORT: https://gitlab.winehq.org/wine/wine/-/merge_requests/2786 */
@@ -176,7 +177,7 @@ SOCKET ConnectToSocket()
 	if (iResult != 0)
 	{
 		print("WSAStartup failed: %d\n", iResult);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	/* TODO: check for multiple discord instances and create a pipe for each */
@@ -213,7 +214,7 @@ SOCKET ConnectToSocket()
 
 				print("socket() failed: %d\n", WSAGetLastError());
 				WSACleanup();
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 
 			struct sockaddr_un addr;
@@ -235,7 +236,7 @@ SOCKET ConnectToSocket()
 	if (!RunningAsService)
 		MessageBox(NULL, "Failed to connect to Discord",
 				   "Socket Connection failed", MB_OK | MB_ICONSTOP);
-	ExitProcess(1);
+	ExitBridge(1);
 }
 
 void PipeBufferInThread(LPVOID lpParam)
@@ -421,6 +422,8 @@ void PipeBufferOutThread(LPVOID lpParam)
 void CreateBridge()
 {
 	{
+		/* should i check if the Wine version is 11.5 or newer or still do this? */
+		print("Checking if AF_UNIX sockets are supported\n");
 		WSADATA wsa;
 		WSAStartup(MAKEWORD(2, 2), &wsa);
 		SOCKET probe = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -437,6 +440,18 @@ void CreateBridge()
 		{
 			print("AF_UNIX sockets supported, using normal socket code\n");
 			closesocket(probe);
+		}
+		else
+		{
+			print("socket() failed: %d\n", WSAGetLastError());
+			WSACleanup();
+			if (!RunningAsService)
+			{
+				MessageBox(NULL, WSAGetLastError(),
+						   "Failed to create socket",
+						   MB_OK | MB_ICONSTOP);
+			}
+			ExitBridge(1);
 		}
 	}
 
@@ -455,7 +470,7 @@ NewConnection:
 					   "Pipe already exists",
 					   MB_OK | MB_ICONSTOP);
 		}
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	HANDLE hPipe =
@@ -473,7 +488,7 @@ NewConnection:
 					   "Failed to create pipe",
 					   MB_OK | MB_ICONSTOP);
 		}
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("hPipe %s(%#x) created\n", lpszPipename, hPipe);
@@ -484,7 +499,7 @@ NewConnection:
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   NULL, MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 	print("hPipe connected\n");
 
@@ -497,7 +512,7 @@ NewConnection:
 			MessageBox(NULL, "Failed to connect to socket",
 					   "Connection failed", MB_OK | MB_ICONSTOP);
 		}
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("Connected to Discord\n");
@@ -516,7 +531,7 @@ NewConnection:
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(),
 					   "Failed to create threads", MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("Waiting for threads to exit\n");

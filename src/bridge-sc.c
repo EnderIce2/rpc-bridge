@@ -63,6 +63,7 @@ typedef struct
 } SC_BRIDGE_THREAD;
 
 /* Shared with main file */
+VOID ExitBridge(UINT uExitCode);
 void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
@@ -254,7 +255,7 @@ static char *sc_getenv(const char *name)
 	return result;
 }
 
-int SC_ConnectToSocket(void)
+int SC_ConnectToSocket()
 {
 	const char *runtime;
 	if (IsLinux)
@@ -277,7 +278,7 @@ int SC_ConnectToSocket(void)
 										MB_YESNO | MB_ICONSTOP);
 				if (result == IDYES)
 					ShellExecute(NULL, "open", "https://enderice2.github.io/rpc-bridge/macos.html", NULL, NULL, SW_SHOWNORMAL);
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 		}
 	}
@@ -311,7 +312,7 @@ int SC_ConnectToSocket(void)
 			if (fd < 0)
 			{
 				print("SC socket() failed: %d\n", fd);
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 
 			socketAddr->sun_family = AF_UNIX;
@@ -331,7 +332,7 @@ int SC_ConnectToSocket(void)
 	if (!RunningAsService)
 		MessageBox(NULL, "Failed to connect to Discord",
 				   "Socket Connection failed", MB_OK | MB_ICONSTOP);
-	ExitProcess(1);
+	ExitBridge(1);
 }
 
 void SC_PipeBufferInThread(LPVOID lpParam)
@@ -455,7 +456,7 @@ void SC_PipeBufferOutThread(LPVOID lpParam)
 	}
 }
 
-void SC_CreateBridge(void)
+void SC_CreateBridge()
 {
 	LPCTSTR lpszPipename = TEXT("\\\\.\\pipe\\discord-ipc-0");
 
@@ -468,7 +469,7 @@ NewConnection:;
 		print("SC hPipe already exists\n");
 		if (!RunningAsService)
 			MessageBox(NULL, "Pipe already exists", "Error", MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	HANDLE hPipe = CreateNamedPipe("\\\\.\\pipe\\discord-ipc-0",
@@ -481,7 +482,7 @@ NewConnection:;
 		print("SC Failed to create hPipe: %d\n", GetLastError());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(), "Failed to create pipe", MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("SC hPipe %s(%#x) created\n", lpszPipename, hPipe);
@@ -491,7 +492,7 @@ NewConnection:;
 		print("SC Failed to connect hPipe: %d\n", GetLastError());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(), NULL, MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 	print("SC hPipe connected\n");
 
@@ -510,7 +511,7 @@ NewConnection:;
 		print("SC Failed to create threads: %s\n", GetErrorMessage());
 		if (!RunningAsService)
 			MessageBox(NULL, GetErrorMessage(), "Failed to create threads", MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	print("SC Waiting for threads to exit\n");

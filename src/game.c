@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
+VOID ExitBridge(UINT uExitCode);
 void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 
@@ -57,7 +58,7 @@ void LaunchGame(int argc, char **argv)
 				MessageBox(NULL, GetErrorMessage(),
 						   "GetBinaryType",
 						   MB_OK | MB_ICONSTOP);
-				ExitProcess(1);
+				ExitBridge(1);
 			}
 			print("Executable type: %d\n", dwBinaryType);
 
@@ -69,7 +70,7 @@ void LaunchGame(int argc, char **argv)
 			MessageBox(NULL, "Invalid game path specified",
 					   NULL, MB_OK | MB_ICONSTOP);
 			print("%s is not a valid file\n", argv[1]);
-			ExitProcess(1);
+			ExitBridge(1);
 		}
 	}
 	else if (argc == 1)
@@ -82,7 +83,7 @@ void LaunchGame(int argc, char **argv)
 	{
 		MessageBox(NULL, "No game path specified",
 				   NULL, MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 
 	STARTUPINFO game_si;
@@ -107,7 +108,7 @@ void LaunchGame(int argc, char **argv)
 	{
 		MessageBox(NULL, GetErrorMessage(),
 				   "CreateProcess", MB_OK | MB_ICONSTOP);
-		ExitProcess(1);
+		ExitBridge(1);
 	}
 	LocalFree(gameArgs);
 	DWORD parentID = game_pi.dwProcessId;
@@ -140,7 +141,7 @@ void LaunchGame(int argc, char **argv)
 	{
 		MessageBox(NULL, GetErrorMessage(),
 				   "CreateToolhelp32Snapshot", MB_OK | MB_ICONSTOP);
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 
 	CloseHandle(game_pi.hProcess);

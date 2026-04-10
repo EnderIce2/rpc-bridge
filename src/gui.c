@@ -12,6 +12,7 @@
  * This will make installation and removal of the bridge WAY easier.
  */
 
+VOID ExitBridge(UINT uExitCode);
 LPTSTR GetErrorMessage();
 void print(char const *fmt, ...);
 void InstallService(int ServiceStartType, LPCSTR Path);
@@ -66,7 +67,7 @@ Version GetFileVersion(const char *path)
 	return v;
 }
 
-BRIDGE_UPDATER CheckInstalledVersion(void)
+BRIDGE_UPDATER CheckInstalledVersion()
 {
 	if (GetFileAttributes("C:\\windows\\bridge.exe") == INVALID_FILE_ATTRIBUTES)
 		return BRIDGE_NOT_INSTALLED;
@@ -219,7 +220,7 @@ VOID HandleInstallButton()
 	}
 
 	HandleStartButton(TRUE);
-	ExitProcess(0);
+	ExitBridge(0);
 }
 
 VOID HandleRemoveButton()
@@ -228,7 +229,7 @@ VOID HandleRemoveButton()
 	if (DeleteFile("C:\\windows\\bridge.exe"))
 	{
 		MessageBox(NULL, "Bridge removed successfully", "Info", MB_OK);
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 
 	DWORD err = GetLastError();
@@ -240,7 +241,7 @@ VOID HandleRemoveButton()
 				   "Bridge service removed successfully.\n"
 				   "The bridge executable will be deleted on prefix restart.",
 				   "Info", MB_OK);
-		ExitProcess(0);
+		ExitBridge(0);
 	}
 
 	print("MoveFileEx failed: %s\n", GetErrorMessage());
@@ -248,9 +249,9 @@ VOID HandleRemoveButton()
 			   "Bridge service was removed, but the executable could not be deleted.\n"
 			   "You can delete C:\\windows\\bridge.exe manually.",
 			   "Warning", MB_OK | MB_ICONWARNING);
-	ExitProcess(0);
+	ExitBridge(0);
 
-	ExitProcess(0);
+	ExitBridge(0);
 }
 
 void ShowLicenseDialog()
@@ -341,7 +342,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
-		ExitProcess(0);
+		ExitBridge(0);
 		break;
 	case WM_CTLCOLORSTATIC:
 	{
@@ -496,5 +497,5 @@ int WINAPI __WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 void CreateGUI()
 {
 	ShowWindow(GetConsoleWindow(), SW_MINIMIZE);
-	ExitProcess(__WinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL));
+	ExitBridge(__WinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL));
 }
