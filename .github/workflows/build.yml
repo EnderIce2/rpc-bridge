@@ -58,7 +58,7 @@ jobs:
     - name: Check which files changed
       id: check
       run: |
-        cd bridge/bridge
+        cd bridge
         sha256sum bridge.exe bridge.sh launchd.sh > /tmp/new.sha256
         gh release download nightly -p "*.sha256" -D /tmp 2>/dev/null || echo "" > /tmp/old.sha256
         for file in bridge.exe bridge.sh launchd.sh; do
@@ -78,7 +78,7 @@ jobs:
 
     - name: Upload changed files
       run: |
-        cd bridge/bridge
+        cd bridge
         FILES_TO_UPLOAD=""
         
         [ "${{ steps.check.outputs.upload_bridge.exe }}" = "true" ] && FILES_TO_UPLOAD="$FILES_TO_UPLOAD bridge.exe"
