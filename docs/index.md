@@ -7,7 +7,7 @@
 Simple bridge that allows you to use Discord Rich Presence with Wine games/software on Linux/macOS.
 
 [Download latest release](https://github.com/EnderIce2/rpc-bridge/releases/latest/download/bridge.zip "Recommended"){ .md-button .md-button--primary }
-[Download latest build](https://github.com/EnderIce2/rpc-bridge/releases/tag/nightly "Builds from the latest commits, here be dragons!"){ .md-button }
+[Download nightly build](https://github.com/EnderIce2/rpc-bridge/releases/tag/nightly "Builds from the latest commits, here be dragons!"){ .md-button }
 
 Works by running a small program in the background that creates a [named pipe](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes) `\\.\pipe\discord-ipc-0` inside the prefix and forwards all data to the pipe `/run/user/1000/discord-ipc-0`.
 
@@ -20,8 +20,7 @@ For v1.0, see [the original README](https://github.com/EnderIce2/rpc-bridge/blob
 
 ## Known Issues
 
-- If you use **Vesktop**
-  Some games may not show up in Discord. This is because Vesktop uses arRPC, which it doesn't work with some games [#4](https://github.com/EnderIce2/rpc-bridge/issues/4#issuecomment-2143549407). This is not an issue with the bridge.
+- Wine versions older than 11.5 are not supported on non-x86 systems. (including newer MacBooks with Apple Silicon and other similar hardware)
 
 ---
 

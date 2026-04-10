@@ -11,19 +11,19 @@
 ## CLI
 
 - `--help` Show help message
-    - This will show the help message
+    - Show the help message
 
 - `--version` Show version
-    - This will show the version of the program
+    - Show the version of the program
 
 - `--install` Install the service
-    - This will copy the binary to `C:\windows\bridge.exe` and register it as a service
+    - Copy the binary to `C:\windows\bridge.exe` and register it as a service
 
 - `--uninstall` Uninstall the service
-    - This will remove the service and delete `C:\windows\bridge.exe`
+    - Remove the service and delete `C:\windows\bridge.exe`
 
 - `--steam` Reserved for Steam
-    - This will start the service and exit (used with `bridge.sh`)
+    - Start the service and exit (used with `bridge.sh`)
 
 - `--no-service` Do not run as service
     - (only for `--steam`)
@@ -32,4 +32,15 @@
     - Reserved
 
 - `--rpc <dir>` Set RPC_PATH environment variable
-    - This is used to specify the directory where `discord-ipc-0` is located
+    - Used to specify the directory where `discord-ipc-0` is located
+
+## Environment Variables
+
+- `BRIDGE_RPC_PATH`
+    - Specifies the directory where `discord-ipc-0` is located
+
+## Accessing the logs
+
+Logs are stored in `C:\windows\logs\bridge.log` and from GUI can be accessed from the `View` > `Logs` tab.
+
+![logs](assets/logs_tab.png "rpc-bridge logs tab")
