@@ -129,7 +129,7 @@ VOID HandleStartButton(BOOL Silent)
 									   SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG | SERVICE_START);
 	if (schService == NULL)
 	{
-		print("Service doesn't exist: %s\n", GetErrorMessage());
+		print("Service doesn't exist\n");
 		CloseServiceHandle(hSCManager);
 
 		/* Service doesn't exist; running without any service */
