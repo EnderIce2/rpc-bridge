@@ -22,6 +22,8 @@ For v1.0, see [the original README](https://github.com/EnderIce2/rpc-bridge/blob
 
 - Wine versions older than 11.5 are not supported on non-x86 systems. (including newer MacBooks with Apple Silicon and other similar hardware)
 
+- For Wine 11.5 and later, you must use the [Staging branch](https://wiki.winehq.org/Wine-Staging).
+
 ---
 
 ## My game is not showing up in Discord
