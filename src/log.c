@@ -9,11 +9,8 @@ extern BOOL RunningAsService;
 
 VOID ExitBridge(UINT uExitCode);
 
-void print(char const *fmt, ...)
+void mutex_lock()
 {
-	SYSTEMTIME st;
-	GetLocalTime(&st);
-
 	if (g_logMutex)
 	{
 		/* 1s timeout to prevent deadlocks */
@@ -28,6 +25,42 @@ void print(char const *fmt, ...)
 			}
 		}
 	}
+}
+
+void mutex_unlock()
+{
+	if (g_logMutex)
+		ReleaseMutex(g_logMutex);
+}
+
+void print_raw(char const *fmt, ...)
+{
+	mutex_lock();
+
+	va_list args;
+
+	/* stdout */
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+
+	if (g_logFile)
+	{
+		va_start(args, fmt);
+		vfprintf(g_logFile, fmt, args);
+		va_end(args);
+		fflush(g_logFile); /* flush immediately so log is readable while running */
+	}
+
+	mutex_unlock();
+}
+
+void print(char const *fmt, ...)
+{
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+
+	mutex_lock();
 
 	char prefix[32];
 	snprintf(prefix, sizeof(prefix), "[%02d:%02d:%02d-%d] ",
@@ -50,8 +83,7 @@ void print(char const *fmt, ...)
 		fflush(g_logFile); /* flush immediately so log is readable while running */
 	}
 
-	if (g_logMutex)
-		ReleaseMutex(g_logMutex);
+	mutex_unlock();
 }
 
 void LogInit()

@@ -37,6 +37,7 @@ typedef struct
 } BRIDGE_THREAD;
 
 VOID ExitBridge(UINT uExitCode);
+void print_raw(char const *fmt, ...);
 void print(char const *fmt, ...);
 LPTSTR GetErrorMessage();
 extern BOOL RunningAsService;
@@ -284,8 +285,8 @@ void PipeBufferInThread(LPVOID lpParam)
 
 		print("Reading %d bytes from hSocket: \"", dwRead);
 		for (int i = 0; i < dwRead; i++)
-			print("%c", buffer[i]);
-		print("\"\n");
+			print_raw("%c", buffer[i]);
+		print_raw("\"\n");
 
 		DWORD dwWritten;
 		WINBOOL bResult = WriteFile(bt->hPipe, buffer, dwRead, &dwWritten, NULL);
@@ -369,8 +370,8 @@ void PipeBufferOutThread(LPVOID lpParam)
 
 		print("Writing %d bytes to hSocket: \"", dwRead);
 		for (int i = 0; i < dwRead; i++)
-			print("%c", buffer[i]);
-		print("\"\n");
+			print_raw("%c", buffer[i]);
+		print_raw("\"\n");
 
 		int sendRet = send((SOCKET)bt->hSocket, buffer, dwRead, 0);
 		if (unlikely(sendRet == SOCKET_ERROR))
