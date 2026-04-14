@@ -429,6 +429,19 @@ void CreateBridge()
 		SOCKET probe = socket(AF_UNIX, SOCK_STREAM, 0);
 		if (probe == INVALID_SOCKET && WSAGetLastError() == WSAEAFNOSUPPORT)
 		{
+			static const char *(CDECL * wine_get_build_id)(void);
+			wine_get_build_id = GetProcAddress(GetModuleHandle("ntdll.dll"), "wine_get_build_id");
+			const char *build_id = wine_get_build_id();
+			if (strstr(build_id, "Staging") == NULL)
+			{
+				print("AF_UNIX sockets are implemented only in Wine Staging.\n");
+				print("Please install \"winehq-staging\" package: https://wiki.winehq.org/Wine-Staging\n");
+				if (!RunningAsService)
+					MessageBox(NULL, "AF_UNIX sockets are implemented only in Wine Staging.\nPlease use the Staging branch.",
+							   "Error", MB_OK | MB_ICONSTOP);
+				ExitBridge(1);
+			}
+
 			print("AF_UNIX not supported, using syscall fallback\n");
 			WSACleanup();
 
