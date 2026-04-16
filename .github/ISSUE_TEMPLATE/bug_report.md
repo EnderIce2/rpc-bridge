@@ -10,8 +10,10 @@ assignees:
 <!--
 
 Before submitting this issue, please make sure you understand the difference between RPC and Game Detection!
+https://enderice2.github.io/rpc-bridge/index.html#my-game-is-not-showing-up-in-discord
 
-https://enderice2.github.io/rpc-bridge/#my-game-is-not-showing-up-in-discord
+also, read the known issues:
+https://enderice2.github.io/rpc-bridge/index.html#known-issues
 
 -->
 
