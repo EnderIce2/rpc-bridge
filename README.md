@@ -36,7 +36,7 @@ Logs are stored in `C:\windows\logs\bridge.log`.
 ##### Steam
 
 - Right click on the game and select `Properties`.
-- Under `Set Launch Options`, add the following:
+- Under `Set Launch Options`, add the following: `/path/to/bridge.sh %command%`
     - ![bridge.sh](docs/assets/steam_script.png "Set Launch Options to the path of the bridge.sh")
 - The `bridge.sh` script must be in the same directory as `bridge.exe`.
 
